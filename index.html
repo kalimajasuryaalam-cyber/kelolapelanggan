@@ -18,18 +18,40 @@
 </head>
 <body>
 
-<div class="app-container border-x border-gray-200">
-    <!-- Header -->
-    <header class="bg-indigo-600 text-white p-5 shadow-md sticky top-0 z-40">
-        <div class="flex justify-between items-center">
-            <div>
-                <h1 class="font-bold text-xl tracking-wide">MANAJEMEN KALIMAJA APPS</h1>
-                <p class="text-indigo-200 text-xs mt-0.5">Manajemen Lisensi & Langganan Aplikasi</p>
-            </div>
-            <div class="bg-indigo-700 p-2.5 rounded-full shadow-inner">
-                <i class="fas fa-building text-white"></i>
-            </div>
+<!-- LAYAR LOGIN ADMIN -->
+<div id="login-screen" class="min-h-screen flex items-center justify-center p-4 bg-gray-100 absolute inset-0 z-50">
+    <div class="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center">
+        <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-lock text-indigo-600 text-2xl"></i>
         </div>
+        <h1 class="text-2xl font-black text-gray-800 mb-1">Login Admin</h1>
+        <p class="text-sm text-gray-500 mb-6">CRM PT Kalimaja Surya Alam</p>
+        <form id="login-form" onsubmit="handleLogin(event)">
+            <div class="mb-4 text-left">
+                <label class="block text-xs font-bold text-gray-700 mb-1">Username</label>
+                <input type="text" id="login-user" required class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Masukkan username">
+            </div>
+            <div class="mb-6 text-left">
+                <label class="block text-xs font-bold text-gray-700 mb-1">Password</label>
+                <input type="password" id="login-pass" required class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="••••••••">
+            </div>
+            <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-md">Masuk ke Sistem</button>
+        </form>
+        <p class="text-[10px] text-gray-400 mt-6"><i class="fas fa-shield-alt mr-1"></i> Data tersimpan aman di Cloud</p>
+    </div>
+</div>
+
+<!-- APLIKASI UTAMA (Tersembunyi sebelum login) -->
+<div id="main-app" class="app-container border-x border-gray-200 hide">
+    <!-- Header -->
+    <header class="bg-indigo-600 text-white p-5 shadow-md sticky top-0 z-40 flex justify-between items-center">
+        <div>
+            <h1 class="font-bold text-xl tracking-wide">MANAJEMEN KALIMAJA</h1>
+            <p class="text-indigo-200 text-xs mt-0.5">Sistem Langganan Aplikasi</p>
+        </div>
+        <button onclick="handleLogout()" class="bg-indigo-700 p-3 rounded-full shadow-inner hover:bg-red-500 transition" title="Keluar">
+            <i class="fas fa-power-off text-white"></i>
+        </button>
     </header>
 
     <!-- MAIN CONTENT -->
@@ -220,13 +242,12 @@
 </div>
 
 <script type="module">
-    // Menggunakan type="module" untuk memanggil firebase dari CDN secara global
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // =====================================================================
-    // 🔴 KONFIGURASI DATABASE UTAMA (CRM KALIMAJA)
+    // KONFIGURASI DATABASE UTAMA (CRM KALIMAJA)
     // =====================================================================
     const crmFirebaseConfig = {
         apiKey: "AIzaSyBARlWoWFwiRI6VUuRMURYSbDaVzSRmn_U",
@@ -236,6 +257,13 @@
         messagingSenderId: "1286590659",
         appId: "1:1286590659:web:1878a970fc778ae6f19276"
     };
+
+    // IDENTITAS DATABASE PERMANEN (Mencegah Data Hilang)
+    const ADMIN_DATA_ID = "kalimaja_master_admin"; 
+    
+    // LOGIN KREDENSIAL DEFAULT
+    const ADMIN_USER = "admin";
+    const ADMIN_PASS = "admin123";
 
     // Inisiasi Firebase App
     let dbCrm;
@@ -250,51 +278,58 @@
     }
 
     // STATE LOKAL
-    window.currentUser = null;
     window.clients = [];
     window.transactions = [];
     window.selectedClientToRenew = null;
     const appId = "kalimaja-crm-app";
     let revenueChartInstance = null;
 
-    // --- FIX 1: SOLUSI AGAR DATA TIDAK HILANG SAAT DIRESET ---
-    // Menggunakan LocalStorage untuk mengunci ID Admin secara permanen
-    window.getAdminId = function() {
-        let adminId = localStorage.getItem('kalimaja_admin_uid');
-        if (!adminId && window.currentUser) {
-            adminId = window.currentUser.uid;
-            localStorage.setItem('kalimaja_admin_uid', adminId);
+    // --- LOGIKA LOGIN ADMIN ---
+    window.handleLogin = function(e) {
+        e.preventDefault();
+        const u = document.getElementById('login-user').value;
+        const p = document.getElementById('login-pass').value;
+
+        if (u === ADMIN_USER && p === ADMIN_PASS) {
+            // Sukses Login
+            localStorage.setItem('kalimaja_crm_logged_in', 'true');
+            document.getElementById('login-screen').classList.add('hide');
+            document.getElementById('main-app').classList.remove('hide');
+            initCRM();
+        } else {
+            alert('Username atau password yang Anda masukkan salah!');
         }
-        return adminId || "admin-belum-login";
     };
 
-    // --- INISIASI AUTENTIKASI ---
+    window.handleLogout = function() {
+        if (confirm("Apakah Anda yakin ingin keluar dari sistem?")) {
+            localStorage.removeItem('kalimaja_crm_logged_in');
+            location.reload();
+        }
+    };
+
+    // Cek status login saat halaman dimuat
+    if (localStorage.getItem('kalimaja_crm_logged_in') === 'true') {
+        document.getElementById('login-screen').classList.add('hide');
+        document.getElementById('main-app').classList.remove('hide');
+        initCRM();
+    }
+
+    // --- INISIASI DATABASE ---
     async function initCRM() {
         try {
-            await setPersistence(authCrm, browserLocalPersistence);
-            
-            onAuthStateChanged(authCrm, (user) => {
-                if (user) {
-                    window.currentUser = user;
-                    // Kunci ID admin agar persisten
-                    window.getAdminId(); 
-                    listenData();
-                } else {
-                    signInAnonymously(authCrm).catch(console.error);
-                }
-            });
+            // Koneksi basic untuk dapat izin Firestore
+            await signInAnonymously(authCrm);
+            // Mulai mendengarkan data langsung ke Brankas Permanen
+            listenData();
         } catch (error) {
-            console.error("Gagal otentikasi:", error);
+            console.error("Gagal koneksi Firebase:", error);
         }
     }
 
     function listenData() {
-        if (!window.currentUser) return;
-        
-        const safeAdminId = window.getAdminId();
-
-        // Listen Klien
-        onSnapshot(collection(dbCrm, 'artifacts', appId, 'users', safeAdminId, 'clients'), (snapshot) => {
+        // Listen Klien dari jalur pasti (ADMIN_DATA_ID)
+        onSnapshot(collection(dbCrm, 'artifacts', appId, 'users', ADMIN_DATA_ID, 'clients'), (snapshot) => {
             window.clients = [];
             snapshot.forEach(d => {
                 let data = d.data();
@@ -308,8 +343,8 @@
             window.renderClients(document.getElementById('search-client')?.value || '');
         });
 
-        // Listen Transaksi
-        onSnapshot(collection(dbCrm, 'artifacts', appId, 'users', safeAdminId, 'transactions'), (snapshot) => {
+        // Listen Transaksi dari jalur pasti (ADMIN_DATA_ID)
+        onSnapshot(collection(dbCrm, 'artifacts', appId, 'users', ADMIN_DATA_ID, 'transactions'), (snapshot) => {
             window.transactions = [];
             snapshot.forEach(d => {
                 window.transactions.push(d.data());
@@ -321,12 +356,10 @@
         });
     }
 
-    // --- LOGIKA SIMPAN & LAINNYA ---
+    // --- LOGIKA SIMPAN (TAMBAH KLIEN BARU) ---
     window.saveClient = async function(e) {
         e.preventDefault();
-        if (!window.currentUser) return alert("Sistem masih menghubungkan database utama...");
 
-        const safeAdminId = window.getAdminId();
         const name = document.getElementById('client-name').value;
         const appName = document.getElementById('client-app').value;
         const phone = document.getElementById('client-phone').value;
@@ -342,7 +375,7 @@
             return;
         }
 
-        window.closeClientModal(); 
+        window.closeClientModal(); // Tutup instan
 
         try {
             const duration = durationVal === 'lifetime' ? 'lifetime' : parseInt(durationVal);
@@ -380,8 +413,9 @@
                 type: "Baru"
             };
 
-            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', safeAdminId, 'clients', newClient.id.toString()), newClient);
-            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', safeAdminId, 'transactions', newTrx.id), newTrx);
+            // Simpan ke Jalur Pasti
+            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', ADMIN_DATA_ID, 'clients', newClient.id.toString()), newClient);
+            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', ADMIN_DATA_ID, 'transactions', newTrx.id), newTrx);
 
             window.switchTab('sec-clients');
             setTimeout(() => alert("Klien baru berhasil dicatat & pemasukan otomatis ditambahkan ke Dashboard!"), 100);
@@ -392,6 +426,7 @@
         }
     };
 
+    // --- LOGIKA PERPANJANGAN (RENEW) ---
     window.openRenewModal = function(clientId) {
         window.selectedClientToRenew = window.clients.find(c => c.id === clientId);
         if(!window.selectedClientToRenew) return;
@@ -406,53 +441,57 @@
     };
 
     document.getElementById('btn-confirm-renew').addEventListener('click', async function() {
-        if(!window.selectedClientToRenew || !window.currentUser) return;
+        if(!window.selectedClientToRenew) return;
 
-        // FIX 2: Copy (Kloning) data client sebelum dihapus dari state layar
-        const client = { ...window.selectedClientToRenew };
-        const safeAdminId = window.getAdminId();
+        // FIX 2: Kloning objek dengan pasti agar aman saat di-clear
+        const clientObj = Object.assign({}, window.selectedClientToRenew);
 
-        // Kosongkan dan tutup seketika
-        window.selectedClientToRenew = null;
         document.getElementById('renew-modal').classList.add('hide'); 
+        window.selectedClientToRenew = null; // Kosongkan state modal secara instan
 
         try {
-            const now = new Date();
-            const trxId = "INV-" + Math.floor(Math.random() * 10000) + client.id.toString().slice(-4);
-            const price = Number(client.price) || 0;
+            const today = new Date();
+            const trxId = "INV-" + Math.floor(Math.random() * 10000) + clientObj.id.toString().slice(-4);
+            const price = Number(clientObj.price) || 0;
 
             const newTrx = {
                 id: trxId,
-                clientId: client.id,
-                clientName: client.name,
-                date: now.toLocaleDateString('id-ID'),
-                dateObj: now.toISOString(),
+                clientId: clientObj.id,
+                clientName: clientObj.name,
+                date: today.toLocaleDateString('id-ID'),
+                dateObj: today.toISOString(),
                 amount: price,
                 type: "Perpanjangan"
             };
 
             let newEndDate;
-            if (client.endDate === 'lifetime') {
+            if (clientObj.endDate === 'lifetime') {
                 return alert('Lisensi seumur hidup tidak perlu diperpanjang.');
             }
 
-            if (client.endDate < now) {
-                newEndDate = new Date(now);
+            if (clientObj.endDate < today) {
+                newEndDate = new Date(today);
             } else {
-                newEndDate = new Date(client.endDate);
+                newEndDate = new Date(clientObj.endDate);
             }
             
-            const dur = parseInt(client.durationMonths) || 1;
+            const dur = parseInt(clientObj.durationMonths) || 1;
             newEndDate.setMonth(newEndDate.getMonth() + dur);
             
             const updatedClient = {
-                ...client,
-                startDate: client.startDate, // Biarkan utuh (karena clone sudah string jika dari db)
+                ...clientObj,
+                startDate: clientObj.startDate, // (berupa Date obj, tapi akan dikonversi jika beda)
                 endDate: newEndDate.toISOString()
             };
+            
+            // Jaga-jaga jika startDate masih bentuk Date objek, kembalikan ke string ISO
+            if(updatedClient.startDate instanceof Date) {
+                updatedClient.startDate = updatedClient.startDate.toISOString();
+            }
 
-            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', safeAdminId, 'clients', client.id.toString()), updatedClient);
-            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', safeAdminId, 'transactions', newTrx.id), newTrx);
+            // Simpan Perubahan ke Jalur Pasti
+            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', ADMIN_DATA_ID, 'clients', clientObj.id.toString()), updatedClient);
+            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', ADMIN_DATA_ID, 'transactions', newTrx.id), newTrx);
 
             setTimeout(() => alert(`Pembayaran perpanjangan berhasil dicatat & masuk ke pendapatan!`), 100);
         } catch (error) {
@@ -462,13 +501,11 @@
     });
 
     window.deleteClient = async function(clientId) {
-        if (!window.currentUser) return;
         if (confirm("Apakah Anda yakin ingin menghapus klien ini secara permanen?")) {
-            const safeAdminId = window.getAdminId();
-            await deleteDoc(doc(dbCrm, 'artifacts', appId, 'users', safeAdminId, 'clients', clientId.toString()));
+            await deleteDoc(doc(dbCrm, 'artifacts', appId, 'users', ADMIN_DATA_ID, 'clients', clientId.toString()));
             const clientTrx = window.transactions.filter(t => t.clientId === clientId);
             clientTrx.forEach(async trx => {
-                await deleteDoc(doc(dbCrm, 'artifacts', appId, 'users', safeAdminId, 'transactions', trx.id));
+                await deleteDoc(doc(dbCrm, 'artifacts', appId, 'users', ADMIN_DATA_ID, 'transactions', trx.id));
             });
             alert("Data dihapus.");
         }
@@ -481,7 +518,7 @@
         }
     };
 
-    // UTILITIES & VIEW RENDERING
+    // --- UTILITIES & VIEW RENDERING ---
     window.formatRp = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(angka);
     window.formatDateShort = (dateObj) => dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -574,7 +611,6 @@
             const isActive = isLifetime ? true : c.endDate >= today;
             let badge = isLifetime ? `<span class="bg-purple-100 text-purple-700 px-2 py-1 rounded-md text-[10px] font-bold">LIFETIME</span>` : (isActive ? `<span class="bg-green-100 text-green-700 px-2 py-1 rounded-md text-[10px] font-bold">AKTIF</span>` : `<span class="bg-red-100 text-red-700 px-2 py-1 rounded-md text-[10px] font-bold">EXPIRED</span>`);
             
-            // Build histori spesifik di dalam setiap klien
             const clientTrx = window.transactions.filter(t => t.clientId === c.id).sort((a, b) => new Date(b.dateObj || 0) - new Date(a.dateObj || 0));
             let historyHTML = '';
             if(clientTrx.length === 0) {
@@ -724,9 +760,6 @@
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
     };
-
-    // INIT
-    initCRM();
 
 </script>
 </body>
