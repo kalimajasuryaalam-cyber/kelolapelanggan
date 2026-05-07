@@ -314,51 +314,66 @@
         const email = document.getElementById('client-email').value;
         const ktp = document.getElementById('client-ktp').value;
         const license = document.getElementById('client-license').value;
-        const price = parseInt(document.getElementById('client-price').value);
+        const price = Number(document.getElementById('client-price').value) || 0; // Memaksa format menjadi Angka Matematika
         const startDateInput = document.getElementById('client-start').value;
         const durationVal = document.getElementById('client-duration').value;
 
-        const duration = durationVal === 'lifetime' ? 'lifetime' : parseInt(durationVal);
-        const startDate = new Date(startDateInput);
-        
-        let endDate = 'lifetime';
-        if (duration !== 'lifetime') {
-            endDate = new Date(startDate);
-            endDate.setMonth(endDate.getMonth() + duration);
+        if (!startDateInput) {
+            alert("Harap isi Tanggal Mulai/Beli!");
+            return;
         }
 
-        const newClientId = Date.now();
-        const newClient = {
-            id: newClientId,
-            name: name,
-            app: appName,
-            phone: phone,
-            email: email,
-            ktp: ktp,
-            license: license,
-            price: price,
-            durationMonths: duration,
-            startDate: startDate.toISOString(), 
-            endDate: endDate === 'lifetime' ? 'lifetime' : endDate.toISOString()
-        };
-
-        const trxId = "INV-" + Math.floor(Math.random() * 10000) + newClientId.toString().slice(-4);
-        const newTrx = {
-            id: trxId,
-            clientId: newClient.id,
-            clientName: newClient.name,
-            date: new Date().toLocaleDateString('id-ID'),
-            dateObj: new Date().toISOString(),
-            amount: price,
-            type: "Baru"
-        };
-
-        await setDoc(doc(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'clients', newClient.id.toString()), newClient);
-        await setDoc(doc(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'transactions', newTrx.id), newTrx);
-
+        // MENUTUP MODAL SEKETIKA (Fix: Modal tidak menutup)
         window.closeClientModal();
-        alert("Klien baru berhasil dicatat di cloud!");
-        window.switchTab('sec-clients');
+
+        try {
+            const duration = durationVal === 'lifetime' ? 'lifetime' : parseInt(durationVal);
+            const startDate = new Date(startDateInput);
+            
+            let endDate = 'lifetime';
+            if (duration !== 'lifetime') {
+                endDate = new Date(startDate);
+                endDate.setMonth(endDate.getMonth() + duration);
+            }
+
+            const newClientId = Date.now();
+            const newClient = {
+                id: newClientId,
+                name: name,
+                app: appName,
+                phone: phone,
+                email: email,
+                ktp: ktp,
+                license: license,
+                price: price,
+                durationMonths: duration,
+                startDate: startDate.toISOString(), 
+                endDate: endDate === 'lifetime' ? 'lifetime' : endDate.toISOString()
+            };
+
+            const trxId = "INV-" + Math.floor(Math.random() * 10000) + newClientId.toString().slice(-4);
+            const newTrx = {
+                id: trxId,
+                clientId: newClient.id,
+                clientName: newClient.name,
+                date: new Date().toLocaleDateString('id-ID'),
+                dateObj: new Date().toISOString(),
+                amount: price,
+                type: "Baru"
+            };
+
+            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'clients', newClient.id.toString()), newClient);
+            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'transactions', newTrx.id), newTrx);
+
+            window.switchTab('sec-clients');
+            
+            // Jeda sebentar agar tidak mengganggu penutupan layar
+            setTimeout(() => alert("Klien baru berhasil dicatat & pemasukan otomatis ditambahkan ke Dashboard!"), 100);
+            
+        } catch (error) {
+            console.error(error);
+            alert("Terjadi kesalahan saat menyimpan data: " + error.message);
+        }
     };
 
     window.openRenewModal = function(clientId) {
@@ -378,36 +393,45 @@
     document.getElementById('btn-confirm-renew').addEventListener('click', async function() {
         if(!window.selectedClientToRenew || !window.currentUser) return;
 
-        const trxId = "INV-" + Math.floor(Math.random() * 10000) + window.selectedClientToRenew.id.toString().slice(-4);
-        const newTrx = {
-            id: trxId,
-            clientId: window.selectedClientToRenew.id,
-            clientName: window.selectedClientToRenew.name,
-            date: new Date().toLocaleDateString('id-ID'),
-            dateObj: new Date().toISOString(),
-            amount: window.selectedClientToRenew.price,
-            type: "Perpanjangan"
-        };
-
-        let newEndDate;
-        if (window.selectedClientToRenew.endDate < today) {
-            newEndDate = new Date(today);
-        } else {
-            newEndDate = new Date(window.selectedClientToRenew.endDate);
-        }
-        newEndDate.setMonth(newEndDate.getMonth() + window.selectedClientToRenew.durationMonths);
-        
-        const updatedClient = {
-            ...window.selectedClientToRenew,
-            startDate: window.selectedClientToRenew.startDate.toISOString(), 
-            endDate: newEndDate.toISOString()
-        };
-
-        await setDoc(doc(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'clients', window.selectedClientToRenew.id.toString()), updatedClient);
-        await setDoc(doc(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'transactions', newTrx.id), newTrx);
-
-        alert(`Pembayaran perpanjangan berhasil dicatat!`);
+        // TUTUP MODAL SEKETIKA
         window.closeRenewModal();
+
+        try {
+            const trxId = "INV-" + Math.floor(Math.random() * 10000) + window.selectedClientToRenew.id.toString().slice(-4);
+            const price = Number(window.selectedClientToRenew.price) || 0; // Fix format Angka
+
+            const newTrx = {
+                id: trxId,
+                clientId: window.selectedClientToRenew.id,
+                clientName: window.selectedClientToRenew.name,
+                date: new Date().toLocaleDateString('id-ID'),
+                dateObj: new Date().toISOString(),
+                amount: price,
+                type: "Perpanjangan"
+            };
+
+            let newEndDate;
+            if (window.selectedClientToRenew.endDate < today) {
+                newEndDate = new Date(today);
+            } else {
+                newEndDate = new Date(window.selectedClientToRenew.endDate);
+            }
+            newEndDate.setMonth(newEndDate.getMonth() + window.selectedClientToRenew.durationMonths);
+            
+            const updatedClient = {
+                ...window.selectedClientToRenew,
+                startDate: window.selectedClientToRenew.startDate.toISOString(), 
+                endDate: newEndDate.toISOString()
+            };
+
+            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'clients', window.selectedClientToRenew.id.toString()), updatedClient);
+            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'transactions', newTrx.id), newTrx);
+
+            setTimeout(() => alert(`Pembayaran perpanjangan berhasil dicatat & masuk ke pendapatan!`), 100);
+        } catch (error) {
+            console.error(error);
+            alert("Gagal mencatat pembayaran: " + error.message);
+        }
     });
 
     window.deleteClient = async function(clientId) {
@@ -430,10 +454,9 @@
         document.getElementById('stat-total-clients').innerText = window.clients.length;
         let monthlyRevenue = 0;
         window.transactions.forEach(trx => {
-            const trxMonth = new Date(trx.dateObj).getMonth();
-            const trxYear = new Date(trx.dateObj).getFullYear();
-            if(trxMonth === today.getMonth() && trxYear === today.getFullYear()) {
-                monthlyRevenue += trx.amount;
+            const dt = trx.dateObj ? new Date(trx.dateObj) : new Date(); // Pelindung jika format tanggal hilang
+            if(dt.getMonth() === today.getMonth() && dt.getFullYear() === today.getFullYear()) {
+                monthlyRevenue += Number(trx.amount) || 0; // Fix Penjumlahan Angka
             }
         });
         document.getElementById('stat-revenue').innerText = window.formatRp(monthlyRevenue);
@@ -541,23 +564,46 @@
             for (let i = 1; i <= daysInMonth; i++) labels.push(i.toString());
             data = new Array(daysInMonth).fill(0);
             window.transactions.forEach(trx => {
-                const dt = new Date(trx.dateObj);
-                if (dt.getMonth() === today.getMonth() && dt.getFullYear() === today.getFullYear()) data[dt.getDate() - 1] += trx.amount;
+                const dt = trx.dateObj ? new Date(trx.dateObj) : new Date();
+                if (dt.getMonth() === today.getMonth() && dt.getFullYear() === today.getFullYear()) {
+                    data[dt.getDate() - 1] += Number(trx.amount) || 0; // Fix penjumlahan angka
+                }
             });
         } else if (type === 'monthly') {
             labels = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
             data = new Array(12).fill(0);
             window.transactions.forEach(trx => {
-                const dt = new Date(trx.dateObj);
-                if (dt.getFullYear() === today.getFullYear()) data[dt.getMonth()] += trx.amount;
+                const dt = trx.dateObj ? new Date(trx.dateObj) : new Date();
+                if (dt.getFullYear() === today.getFullYear()) {
+                    data[dt.getMonth()] += Number(trx.amount) || 0; // Fix penjumlahan angka
+                }
+            });
+        } else if (type === 'yearly') {
+            // Mengembalikan grafik tahunan
+            const yearData = {};
+            window.transactions.forEach(trx => {
+                const dt = trx.dateObj ? new Date(trx.dateObj) : new Date();
+                const y = dt.getFullYear();
+                yearData[y] = (yearData[y] || 0) + (Number(trx.amount) || 0); // Fix penjumlahan angka
+            });
+            const sortedYears = Object.keys(yearData).sort();
+            if(sortedYears.length === 0) {
+                sortedYears.push(today.getFullYear().toString());
+                yearData[today.getFullYear()] = 0;
+            }
+            sortedYears.forEach(y => {
+                labels.push(y);
+                data.push(yearData[y]);
             });
         }
 
         const ctx = document.getElementById('revenueChart').getContext('2d');
         if (revenueChartInstance) revenueChartInstance.destroy();
+        
+        const chartType = type === 'yearly' ? 'bar' : 'line'; // Tahun menggunakan Grafik Batang
 
         revenueChartInstance = new Chart(ctx, {
-            type: 'line',
+            type: chartType,
             data: {
                 labels: labels,
                 datasets: [{
@@ -567,7 +613,8 @@
                     borderColor: 'rgba(79, 70, 229, 1)',
                     borderWidth: 2,
                     fill: true,
-                    tension: 0.3
+                    tension: 0.3,
+                    borderRadius: type === 'yearly' ? 4 : 0
                 }]
             },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
