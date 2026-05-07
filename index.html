@@ -222,7 +222,7 @@
 <script type="module">
     // Menggunakan type="module" untuk memanggil firebase dari CDN secara global
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // =====================================================================
@@ -255,17 +255,21 @@
     window.transactions = [];
     window.selectedClientToRenew = null;
     const appId = "kalimaja-crm-app";
-    const today = new Date();
     let revenueChartInstance = null;
 
     // --- INISIASI AUTENTIKASI ---
     async function initCRM() {
         try {
-            await signInAnonymously(authCrm);
+            // FIX 1: Memastikan sesi login disimpan secara permanen di browser
+            await setPersistence(authCrm, browserLocalPersistence);
+            
+            // Cek apakah user sudah login, jika belum baru buat akun anonim
             onAuthStateChanged(authCrm, (user) => {
                 if (user) {
                     window.currentUser = user;
                     listenData();
+                } else {
+                    signInAnonymously(authCrm).catch(console.error);
                 }
             });
         } catch (error) {
@@ -314,7 +318,7 @@
         const email = document.getElementById('client-email').value;
         const ktp = document.getElementById('client-ktp').value;
         const license = document.getElementById('client-license').value;
-        const price = Number(document.getElementById('client-price').value) || 0;
+        const price = Number(document.getElementById('client-price').value) || 0; // Fix Penjumlahan Teks
         const startDateInput = document.getElementById('client-start').value;
         const durationVal = document.getElementById('client-duration').value;
 
@@ -393,6 +397,8 @@
         window.closeRenewModal(); // Tutup instan
 
         try {
+            // FIX 2: Mencegah bug saat masa aktif error dengan menggunakan Date Dinamis
+            const now = new Date();
             const trxId = "INV-" + Math.floor(Math.random() * 10000) + window.selectedClientToRenew.id.toString().slice(-4);
             const price = Number(window.selectedClientToRenew.price) || 0;
 
@@ -400,19 +406,26 @@
                 id: trxId,
                 clientId: window.selectedClientToRenew.id,
                 clientName: window.selectedClientToRenew.name,
-                date: new Date().toLocaleDateString('id-ID'),
-                dateObj: new Date().toISOString(),
+                date: now.toLocaleDateString('id-ID'),
+                dateObj: now.toISOString(),
                 amount: price,
                 type: "Perpanjangan"
             };
 
             let newEndDate;
-            if (window.selectedClientToRenew.endDate < today) {
-                newEndDate = new Date(today);
+            if (window.selectedClientToRenew.endDate === 'lifetime') {
+                return alert('Lisensi seumur hidup tidak perlu diperpanjang.');
+            }
+
+            if (window.selectedClientToRenew.endDate < now) {
+                newEndDate = new Date(now);
             } else {
                 newEndDate = new Date(window.selectedClientToRenew.endDate);
             }
-            newEndDate.setMonth(newEndDate.getMonth() + window.selectedClientToRenew.durationMonths);
+            
+            // Pengaman pastikan duration adalah angka
+            const dur = parseInt(window.selectedClientToRenew.durationMonths) || 1;
+            newEndDate.setMonth(newEndDate.getMonth() + dur);
             
             const updatedClient = {
                 ...window.selectedClientToRenew,
@@ -454,7 +467,9 @@
     window.formatDateShort = (dateObj) => dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 
     window.updateDashboard = function() {
+        const today = new Date();
         document.getElementById('stat-total-clients').innerText = window.clients.length;
+        
         let monthlyRevenue = 0;
         window.transactions.forEach(trx => {
             const dt = trx.dateObj ? new Date(trx.dateObj) : new Date();
@@ -525,6 +540,7 @@
     };
 
     window.renderClients = function(filterText = '') {
+        const today = new Date();
         const list = document.getElementById('client-list');
         list.innerHTML = '';
         const filtered = window.clients.filter(c => 
@@ -576,19 +592,18 @@
                         <div class="col-span-2 sm:col-span-1"><i class="fab fa-whatsapp text-green-500 w-4 text-center mr-1"></i> ${c.phone}</div>
                         <div class="col-span-2 sm:col-span-1 truncate"><i class="fas fa-envelope text-blue-400 w-4 text-center mr-1"></i> ${c.email || '-'}</div>
                     </div>
-                    <div class="bg-gray-50 p-3 rounded-lg text-xs flex flex-col gap-3 border border-gray-200">
-                        <div class="flex justify-between items-center">
-                            <div><p class="text-gray-400 text-[10px] font-semibold">Berlaku Sampai</p><p class="font-bold ${isLifetime ? 'text-purple-600' : (isActive ? 'text-gray-700' : 'text-red-600')}">${isLifetime ? 'Seumur Hidup' : window.formatDateShort(c.endDate)}</p></div>
-                            <div class="flex space-x-2">
-                                <button onclick="toggleClientHistory(${c.id})" class="text-gray-600 bg-white hover:bg-gray-100 px-3 py-1.5 rounded-lg font-bold transition border border-gray-200 shadow-sm flex items-center">
-                                    <i class="fas fa-history mr-1"></i> Histori
-                                </button>
-                                ${isLifetime ? `<div class="text-purple-500 bg-purple-50 px-3 py-1.5 rounded-lg font-bold border border-purple-100 shadow-sm flex items-center"><i class="fas fa-check-circle mr-1"></i> Lunas</div>` : `<button onclick="openRenewModal(${c.id})" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg font-bold transition border border-indigo-100 shadow-sm">Perpanjang</button>`}
-                            </div>
+                    <div class="bg-gray-50 p-3 rounded-lg text-xs flex justify-between border border-gray-200">
+                        <div><p class="text-gray-400 text-[10px] font-semibold">Berlaku Sampai</p><p class="font-bold ${isLifetime ? 'text-purple-600' : (isActive ? 'text-gray-700' : 'text-red-600')}">${isLifetime ? 'Seumur Hidup' : window.formatDateShort(c.endDate)}</p></div>
+                        <div class="flex space-x-2">
+                            <button onclick="toggleClientHistory(${c.id})" class="text-gray-600 bg-white hover:bg-gray-100 px-3 py-1.5 rounded-lg font-bold transition border border-gray-200 shadow-sm flex items-center">
+                                <i class="fas fa-history mr-1"></i> Histori
+                            </button>
+                            ${isLifetime ? `<div class="text-purple-500 bg-purple-50 px-3 py-1.5 rounded-lg font-bold border border-purple-100 shadow-sm flex items-center"><i class="fas fa-check-circle mr-1"></i> Lunas</div>` : `<button onclick="openRenewModal(${c.id})" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg font-bold transition border border-indigo-100 shadow-sm">Perpanjang</button>`}
                         </div>
-                        <div id="history-container-${c.id}" class="hidden transition-all duration-300">
-                            ${historyHTML}
-                        </div>
+                    </div>
+                    <!-- Embedded History Container -->
+                    <div id="history-container-${c.id}" class="hidden transition-all duration-300">
+                        ${historyHTML}
                     </div>
                 </div>`;
         });
@@ -624,6 +639,7 @@
     };
 
     window.updateChart = function() {
+        const today = new Date();
         const filter = document.getElementById('chart-filter');
         if(!filter) return;
         const type = filter.value;
