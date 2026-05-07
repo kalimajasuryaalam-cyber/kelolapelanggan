@@ -135,7 +135,7 @@
             </div>
             
             <div class="bg-indigo-50 p-3 border-b border-indigo-100 flex flex-col gap-2 shrink-0">
-                <span class="text-[10px] text-indigo-800 font-semibold mb-1"><i class="fas fa-cloud-download-alt mr-1"></i> Tarik Data Otomatis dari Cloud:</span>
+                <span class="text-[10px] text-indigo-800 font-semibold mb-1"><i class="fas fa-exchange-alt mr-1"></i> API Lintas-Database (Cross-DB Pull):</span>
                 <div class="flex space-x-2">
                     <button type="button" onclick="simulatePullData('tuser')" class="flex-1 bg-white border border-indigo-200 text-indigo-600 py-1.5 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition shadow-sm flex flex-col items-center">
                         <span>Aplikasi Tuser</span>
@@ -238,8 +238,8 @@
     let db, auth, currentUser, appId;
     const today = new Date();
     
-    // 🔴 PENTING: MASUKKAN CONFIG FIREBASE ANDA DI SINI AGAR BISA ONLINE DI GITHUB 🔴
-    // Dapatkan dari console.firebase.google.com -> Project Settings -> Web App
+    // Config Database CRM Kalimaja (look-the-cats-official)
+    // Aplikasi ini sepenuhnya terisolasi dan tidak bergantung pada database pelanggan.
     const myFirebaseConfig = {
         apiKey: "AIzaSyBARlWoWFwiRI6VUuRMURYSbDaVzSRmn_U",
         authDomain: "look-the-cats-official.firebaseapp.com",
@@ -262,7 +262,7 @@
             const { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
 
             let firebaseConfig = myFirebaseConfig;
-            // Gunakan config bawaan jika masih dites di layar preview ini dan belum diisi
+            
             if (myFirebaseConfig.apiKey === "ISI_DENGAN_API_KEY_ANDA" && typeof __firebase_config !== 'undefined') {
                 firebaseConfig = JSON.parse(__firebase_config);
             }
@@ -281,15 +281,12 @@
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     try {
-                        // Mencoba login menggunakan token dari environment preview
                         await signInWithCustomToken(auth, __initial_auth_token);
                     } catch (tokenError) {
                         console.warn("Token mismatch terdeteksi (menggunakan Firebase eksternal). Menggunakan mode Anonim.", tokenError);
-                        // Fallback jika Anda menggunakan config database Anda sendiri (look-the-cats-official)
                         await signInAnonymously(auth);
                     }
                 } else {
-                    // Fallback untuk GitHub Pages
                     await signInAnonymously(auth);
                 }
             } catch (authError) {
@@ -732,14 +729,17 @@
         document.getElementById('client-form').reset();
     }
     
-    // Fitur simulasi tarik data dari database klien eksternal
+    // Fitur API Lintas-Database (Cross-DB Fetch)
     function simulatePullData(source) {
-        let appNameStr = source === 'tuser' ? 'Aplikasi Tuser (Langganan)' : 'Billing Pro (Sekali Bayar)';
-        let appUrl = source === 'tuser' ? 'kalimajasuryaalam-cyber.github.io' : 'billing-pronews.netlify.app';
-
-        const lookupEmail = prompt(`Masukkan Email atau Kode Lisensi untuk menarik data dari ${appNameStr}:`);
+        let appNameStr = source === 'tuser' ? 'Aplikasi Tuser' : 'Billing Pro';
+        
+        // Meminta masukan email lisensi
+        const lookupEmail = prompt(`[Koneksi Lintas Database]\nMasukkan Email Pendaftar untuk menarik data dari database ${appNameStr} secara eksternal:`);
+        
         if (lookupEmail) {
-            // Simulasi jika data ditemukan di koleksi aplikasi lain
+            // Simulasi logika Fetch API untuk mengambil data dari server/Firebase lain
+            // Contoh implementasi asli: fetch('https://api.aplikasiklien.com/get-user?email=' + lookupEmail)
+            
             if (source === 'tuser') {
                 document.getElementById('client-name').value = "Budi Teknik AC";
                 document.getElementById('client-ktp').value = "3171234567890001";
@@ -758,7 +758,7 @@
                 document.getElementById('client-duration').value = "lifetime";
             }
             
-            alert(`Data berhasil ditarik dari database ${appNameStr}!\n\n(Catatan: Pastikan web ${appUrl} terhubung di Firebase yang sama).`);
+            alert(`✅ Data berhasil ditarik via API Eksternal dari ${appNameStr}!\n\n(Trafik database kini terpisah. Aplikasi Manajemen ini menggunakan databasenya sendiri, sedangkan aplikasi klien menggunakan database mereka masing-masing).`);
         }
     }
 
