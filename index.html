@@ -238,6 +238,18 @@
     let db, auth, currentUser, appId;
     const today = new Date();
     
+    // 🔴 PENTING: MASUKKAN CONFIG FIREBASE ANDA DI SINI AGAR BISA ONLINE DI GITHUB 🔴
+    // Dapatkan dari console.firebase.google.com -> Project Settings -> Web App
+    const myFirebaseConfig = {
+        apiKey: "AIzaSyBARlWoWFwiRI6VUuRMURYSbDaVzSRmn_U",
+        authDomain: "look-the-cats-official.firebaseapp.com",
+        projectId: "look-the-cats-official",
+        storageBucket: "look-the-cats-official.firebasestorage.app",
+        messagingSenderId: "1286590659",
+        appId: "1:1286590659:web:1878a970fc778ae6f19276",
+        measurementId: "G-XGF86YXY3Y"
+    };
+    
     let clients = [];
     let transactions = [];
     let selectedClientToRenew = null;
@@ -249,16 +261,40 @@
             const { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
             const { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
 
-            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+            let firebaseConfig = myFirebaseConfig;
+            // Gunakan config bawaan jika masih dites di layar preview ini dan belum diisi
+            if (myFirebaseConfig.apiKey === "ISI_DENGAN_API_KEY_ANDA" && typeof __firebase_config !== 'undefined') {
+                firebaseConfig = JSON.parse(__firebase_config);
+            }
+
+            if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "ISI_DENGAN_API_KEY_ANDA") {
+                alert("Harap isi myFirebaseConfig di dalam kode HTML agar bisa online di Github!");
+                throw new Error("Firebase config kosong");
+            }
+
             const app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
-            appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            appId = typeof __app_id !== 'undefined' ? __app_id : 'kalimaja-crm-app';
 
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
+            // Penanganan Error Token Mismatch
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    try {
+                        // Mencoba login menggunakan token dari environment preview
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } catch (tokenError) {
+                        console.warn("Token mismatch terdeteksi (menggunakan Firebase eksternal). Menggunakan mode Anonim.", tokenError);
+                        // Fallback jika Anda menggunakan config database Anda sendiri (look-the-cats-official)
+                        await signInAnonymously(auth);
+                    }
+                } else {
+                    // Fallback untuk GitHub Pages
+                    await signInAnonymously(auth);
+                }
+            } catch (authError) {
+                console.error("Kesalahan otentikasi:", authError);
+                throw authError;
             }
 
             onAuthStateChanged(auth, (user) => {
@@ -274,7 +310,7 @@
             window.fsDeleteDoc = deleteDoc;
         } catch (error) {
             console.error("Gagal inisiasi database cloud:", error);
-            alert("Database offline atau dalam gangguan.");
+            alert("Database offline atau dalam gangguan. Silakan periksa koneksi atau config Firebase Anda.");
         }
     }
 
