@@ -394,18 +394,21 @@
     document.getElementById('btn-confirm-renew').addEventListener('click', async function() {
         if(!window.selectedClientToRenew || !window.currentUser) return;
 
-        window.closeRenewModal(); // Tutup instan
+        // Simpan (copy) data klien sebelum variabel dikosongkan oleh fungsi close
+        const client = window.selectedClientToRenew;
+
+        window.closeRenewModal(); // Tutup instan layar
 
         try {
             // FIX 2: Mencegah bug saat masa aktif error dengan menggunakan Date Dinamis
             const now = new Date();
-            const trxId = "INV-" + Math.floor(Math.random() * 10000) + window.selectedClientToRenew.id.toString().slice(-4);
-            const price = Number(window.selectedClientToRenew.price) || 0;
+            const trxId = "INV-" + Math.floor(Math.random() * 10000) + client.id.toString().slice(-4);
+            const price = Number(client.price) || 0;
 
             const newTrx = {
                 id: trxId,
-                clientId: window.selectedClientToRenew.id,
-                clientName: window.selectedClientToRenew.name,
+                clientId: client.id,
+                clientName: client.name,
                 date: now.toLocaleDateString('id-ID'),
                 dateObj: now.toISOString(),
                 amount: price,
@@ -413,27 +416,27 @@
             };
 
             let newEndDate;
-            if (window.selectedClientToRenew.endDate === 'lifetime') {
+            if (client.endDate === 'lifetime') {
                 return alert('Lisensi seumur hidup tidak perlu diperpanjang.');
             }
 
-            if (window.selectedClientToRenew.endDate < now) {
+            if (client.endDate < now) {
                 newEndDate = new Date(now);
             } else {
-                newEndDate = new Date(window.selectedClientToRenew.endDate);
+                newEndDate = new Date(client.endDate);
             }
             
             // Pengaman pastikan duration adalah angka
-            const dur = parseInt(window.selectedClientToRenew.durationMonths) || 1;
+            const dur = parseInt(client.durationMonths) || 1;
             newEndDate.setMonth(newEndDate.getMonth() + dur);
             
             const updatedClient = {
-                ...window.selectedClientToRenew,
-                startDate: window.selectedClientToRenew.startDate.toISOString(), 
+                ...client,
+                startDate: client.startDate.toISOString(), 
                 endDate: newEndDate.toISOString()
             };
 
-            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'clients', window.selectedClientToRenew.id.toString()), updatedClient);
+            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'clients', client.id.toString()), updatedClient);
             await setDoc(doc(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'transactions', newTrx.id), newTrx);
 
             setTimeout(() => alert(`Pembayaran perpanjangan berhasil dicatat & masuk ke pendapatan!`), 100);
