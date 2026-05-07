@@ -257,16 +257,27 @@
     const appId = "kalimaja-crm-app";
     let revenueChartInstance = null;
 
+    // --- FIX 1: SOLUSI AGAR DATA TIDAK HILANG SAAT DIRESET ---
+    // Menggunakan LocalStorage untuk mengunci ID Admin secara permanen
+    window.getAdminId = function() {
+        let adminId = localStorage.getItem('kalimaja_admin_uid');
+        if (!adminId && window.currentUser) {
+            adminId = window.currentUser.uid;
+            localStorage.setItem('kalimaja_admin_uid', adminId);
+        }
+        return adminId || "admin-belum-login";
+    };
+
     // --- INISIASI AUTENTIKASI ---
     async function initCRM() {
         try {
-            // FIX 1: Memastikan sesi login disimpan secara permanen di browser
             await setPersistence(authCrm, browserLocalPersistence);
             
-            // Cek apakah user sudah login, jika belum baru buat akun anonim
             onAuthStateChanged(authCrm, (user) => {
                 if (user) {
                     window.currentUser = user;
+                    // Kunci ID admin agar persisten
+                    window.getAdminId(); 
                     listenData();
                 } else {
                     signInAnonymously(authCrm).catch(console.error);
@@ -279,8 +290,11 @@
 
     function listenData() {
         if (!window.currentUser) return;
+        
+        const safeAdminId = window.getAdminId();
+
         // Listen Klien
-        onSnapshot(collection(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'clients'), (snapshot) => {
+        onSnapshot(collection(dbCrm, 'artifacts', appId, 'users', safeAdminId, 'clients'), (snapshot) => {
             window.clients = [];
             snapshot.forEach(d => {
                 let data = d.data();
@@ -295,7 +309,7 @@
         });
 
         // Listen Transaksi
-        onSnapshot(collection(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'transactions'), (snapshot) => {
+        onSnapshot(collection(dbCrm, 'artifacts', appId, 'users', safeAdminId, 'transactions'), (snapshot) => {
             window.transactions = [];
             snapshot.forEach(d => {
                 window.transactions.push(d.data());
@@ -303,7 +317,7 @@
             window.transactions.sort((a,b) => new Date(a.dateObj || 0) - new Date(b.dateObj || 0)); 
             window.updateDashboard();
             window.renderTransactions();
-            window.renderClients(document.getElementById('search-client')?.value || ''); // Refresh histori dalam form klien
+            window.renderClients(document.getElementById('search-client')?.value || ''); 
         });
     }
 
@@ -312,13 +326,14 @@
         e.preventDefault();
         if (!window.currentUser) return alert("Sistem masih menghubungkan database utama...");
 
+        const safeAdminId = window.getAdminId();
         const name = document.getElementById('client-name').value;
         const appName = document.getElementById('client-app').value;
         const phone = document.getElementById('client-phone').value;
         const email = document.getElementById('client-email').value;
         const ktp = document.getElementById('client-ktp').value;
         const license = document.getElementById('client-license').value;
-        const price = Number(document.getElementById('client-price').value) || 0; // Fix Penjumlahan Teks
+        const price = Number(document.getElementById('client-price').value) || 0; 
         const startDateInput = document.getElementById('client-start').value;
         const durationVal = document.getElementById('client-duration').value;
 
@@ -327,7 +342,7 @@
             return;
         }
 
-        window.closeClientModal(); // Tutup instan
+        window.closeClientModal(); 
 
         try {
             const duration = durationVal === 'lifetime' ? 'lifetime' : parseInt(durationVal);
@@ -365,8 +380,8 @@
                 type: "Baru"
             };
 
-            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'clients', newClient.id.toString()), newClient);
-            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'transactions', newTrx.id), newTrx);
+            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', safeAdminId, 'clients', newClient.id.toString()), newClient);
+            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', safeAdminId, 'transactions', newTrx.id), newTrx);
 
             window.switchTab('sec-clients');
             setTimeout(() => alert("Klien baru berhasil dicatat & pemasukan otomatis ditambahkan ke Dashboard!"), 100);
@@ -388,19 +403,20 @@
 
     window.closeRenewModal = function() {
         document.getElementById('renew-modal').classList.add('hide');
-        window.selectedClientToRenew = null;
     };
 
     document.getElementById('btn-confirm-renew').addEventListener('click', async function() {
         if(!window.selectedClientToRenew || !window.currentUser) return;
 
-        // Simpan (copy) data klien sebelum variabel dikosongkan oleh fungsi close
-        const client = window.selectedClientToRenew;
+        // FIX 2: Copy (Kloning) data client sebelum dihapus dari state layar
+        const client = { ...window.selectedClientToRenew };
+        const safeAdminId = window.getAdminId();
 
-        window.closeRenewModal(); // Tutup instan layar
+        // Kosongkan dan tutup seketika
+        window.selectedClientToRenew = null;
+        document.getElementById('renew-modal').classList.add('hide'); 
 
         try {
-            // FIX 2: Mencegah bug saat masa aktif error dengan menggunakan Date Dinamis
             const now = new Date();
             const trxId = "INV-" + Math.floor(Math.random() * 10000) + client.id.toString().slice(-4);
             const price = Number(client.price) || 0;
@@ -426,18 +442,17 @@
                 newEndDate = new Date(client.endDate);
             }
             
-            // Pengaman pastikan duration adalah angka
             const dur = parseInt(client.durationMonths) || 1;
             newEndDate.setMonth(newEndDate.getMonth() + dur);
             
             const updatedClient = {
                 ...client,
-                startDate: client.startDate.toISOString(), 
+                startDate: client.startDate, // Biarkan utuh (karena clone sudah string jika dari db)
                 endDate: newEndDate.toISOString()
             };
 
-            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'clients', client.id.toString()), updatedClient);
-            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'transactions', newTrx.id), newTrx);
+            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', safeAdminId, 'clients', client.id.toString()), updatedClient);
+            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', safeAdminId, 'transactions', newTrx.id), newTrx);
 
             setTimeout(() => alert(`Pembayaran perpanjangan berhasil dicatat & masuk ke pendapatan!`), 100);
         } catch (error) {
@@ -449,10 +464,11 @@
     window.deleteClient = async function(clientId) {
         if (!window.currentUser) return;
         if (confirm("Apakah Anda yakin ingin menghapus klien ini secara permanen?")) {
-            await deleteDoc(doc(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'clients', clientId.toString()));
+            const safeAdminId = window.getAdminId();
+            await deleteDoc(doc(dbCrm, 'artifacts', appId, 'users', safeAdminId, 'clients', clientId.toString()));
             const clientTrx = window.transactions.filter(t => t.clientId === clientId);
             clientTrx.forEach(async trx => {
-                await deleteDoc(doc(dbCrm, 'artifacts', appId, 'users', window.currentUser.uid, 'transactions', trx.id));
+                await deleteDoc(doc(dbCrm, 'artifacts', appId, 'users', safeAdminId, 'transactions', trx.id));
             });
             alert("Data dihapus.");
         }
