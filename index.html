@@ -243,7 +243,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // =====================================================================
@@ -257,9 +257,6 @@
         messagingSenderId: "1286590659",
         appId: "1:1286590659:web:1878a970fc778ae6f19276"
     };
-
-    // IDENTITAS DATABASE PERMANEN (Mencegah Data Hilang)
-    const ADMIN_DATA_ID = "kalimaja_master_admin"; 
     
     // LOGIN KREDENSIAL DEFAULT
     const ADMIN_USER = "admin";
@@ -278,10 +275,11 @@
     }
 
     // STATE LOKAL
+    window.currentUser = null;
     window.clients = [];
     window.transactions = [];
-    window.selectedClientToRenew = null;
-    const appId = "kalimaja-crm-app";
+    window.renewingClientId = null; // Fix 2: Menyimpan ID dari klien yang akan diperpanjang secara aman
+    const appId = "kalimaja-crm"; // Nama Identifier Koleksi Master
     let revenueChartInstance = null;
 
     // --- LOGIKA LOGIN ADMIN ---
@@ -291,8 +289,7 @@
         const p = document.getElementById('login-pass').value;
 
         if (u === ADMIN_USER && p === ADMIN_PASS) {
-            // Sukses Login
-            localStorage.setItem('kalimaja_crm_logged_in', 'true');
+            // Sukses Login UI
             document.getElementById('login-screen').classList.add('hide');
             document.getElementById('main-app').classList.remove('hide');
             initCRM();
@@ -303,33 +300,36 @@
 
     window.handleLogout = function() {
         if (confirm("Apakah Anda yakin ingin keluar dari sistem?")) {
-            localStorage.removeItem('kalimaja_crm_logged_in');
             location.reload();
         }
     };
 
-    // Cek status login saat halaman dimuat
-    if (localStorage.getItem('kalimaja_crm_logged_in') === 'true') {
-        document.getElementById('login-screen').classList.add('hide');
-        document.getElementById('main-app').classList.remove('hide');
-        initCRM();
-    }
-
     // --- INISIASI DATABASE ---
     async function initCRM() {
         try {
-            // Koneksi basic untuk dapat izin Firestore
             await signInAnonymously(authCrm);
-            // Mulai mendengarkan data langsung ke Brankas Permanen
-            listenData();
+            onAuthStateChanged(authCrm, (user) => {
+                if (user) {
+                    window.currentUser = user;
+                    listenData();
+                }
+            });
         } catch (error) {
             console.error("Gagal koneksi Firebase:", error);
         }
     }
 
     function listenData() {
-        // Listen Klien dari jalur pasti (ADMIN_DATA_ID)
-        onSnapshot(collection(dbCrm, 'artifacts', appId, 'users', ADMIN_DATA_ID, 'clients'), (snapshot) => {
+        if (!window.currentUser) return;
+        
+        // FIX 1: PENGGUNAAN PUBLIC PATH UNTUK MENCEGAH DATA HILANG
+        // Path dialihkan ke 'public/data' sehingga walau UID Anonim berubah-ubah
+        // (saat buka mode incognito/browser HP lain), data Anda tetap berada di tempat yang sama persis!
+        const clientsRef = collection(dbCrm, 'artifacts', appId, 'public', 'data', 'clients');
+        const transRef = collection(dbCrm, 'artifacts', appId, 'public', 'data', 'transactions');
+
+        // Listen Klien
+        onSnapshot(clientsRef, (snapshot) => {
             window.clients = [];
             snapshot.forEach(d => {
                 let data = d.data();
@@ -343,8 +343,8 @@
             window.renderClients(document.getElementById('search-client')?.value || '');
         });
 
-        // Listen Transaksi dari jalur pasti (ADMIN_DATA_ID)
-        onSnapshot(collection(dbCrm, 'artifacts', appId, 'users', ADMIN_DATA_ID, 'transactions'), (snapshot) => {
+        // Listen Transaksi
+        onSnapshot(transRef, (snapshot) => {
             window.transactions = [];
             snapshot.forEach(d => {
                 window.transactions.push(d.data());
@@ -359,6 +359,7 @@
     // --- LOGIKA SIMPAN (TAMBAH KLIEN BARU) ---
     window.saveClient = async function(e) {
         e.preventDefault();
+        if (!window.currentUser) return alert("Sistem masih menghubungkan database utama...");
 
         const name = document.getElementById('client-name').value;
         const appName = document.getElementById('client-app').value;
@@ -413,12 +414,15 @@
                 type: "Baru"
             };
 
-            // Simpan ke Jalur Pasti
-            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', ADMIN_DATA_ID, 'clients', newClient.id.toString()), newClient);
-            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', ADMIN_DATA_ID, 'transactions', newTrx.id), newTrx);
+            // Simpan ke Master Data Public Path
+            const docClientRef = doc(dbCrm, 'artifacts', appId, 'public', 'data', 'clients', newClient.id.toString());
+            const docTrxRef = doc(dbCrm, 'artifacts', appId, 'public', 'data', 'transactions', newTrx.id);
+
+            await setDoc(docClientRef, newClient);
+            await setDoc(docTrxRef, newTrx);
 
             window.switchTab('sec-clients');
-            setTimeout(() => alert("Klien baru berhasil dicatat & pemasukan otomatis ditambahkan ke Dashboard!"), 100);
+            alert("Klien baru berhasil dicatat & pemasukan otomatis ditambahkan ke Dashboard!");
             
         } catch (error) {
             console.error(error);
@@ -428,72 +432,79 @@
 
     // --- LOGIKA PERPANJANGAN (RENEW) ---
     window.openRenewModal = function(clientId) {
-        window.selectedClientToRenew = window.clients.find(c => c.id === clientId);
-        if(!window.selectedClientToRenew) return;
-        document.getElementById('renew-client-name').innerText = window.selectedClientToRenew.name;
-        document.getElementById('renew-app-name').innerText = window.selectedClientToRenew.app;
-        document.getElementById('renew-price').innerText = window.formatRp(window.selectedClientToRenew.price);
+        const clientObj = window.clients.find(c => c.id === clientId);
+        if(!clientObj) return;
+
+        window.renewingClientId = clientId; // Mengamankan ID klien ke memori
+        document.getElementById('renew-client-name').innerText = clientObj.name;
+        document.getElementById('renew-app-name').innerText = clientObj.app;
+        document.getElementById('renew-price').innerText = window.formatRp(clientObj.price);
         document.getElementById('renew-modal').classList.remove('hide');
     };
 
     window.closeRenewModal = function() {
         document.getElementById('renew-modal').classList.add('hide');
+        window.renewingClientId = null; // Bersihkan dari memori
     };
 
     document.getElementById('btn-confirm-renew').addEventListener('click', async function() {
-        if(!window.selectedClientToRenew) return;
+        if(!window.renewingClientId || !window.currentUser) return;
 
-        // FIX 2: Kloning objek dengan pasti agar aman saat di-clear
-        const clientObj = Object.assign({}, window.selectedClientToRenew);
+        // FIX 2: Amankan seluruh variabel sebelum layar ditutup (Anti Error Null)
+        const clientObj = window.clients.find(c => c.id === window.renewingClientId);
+        if (!clientObj) return;
 
-        document.getElementById('renew-modal').classList.add('hide'); 
-        window.selectedClientToRenew = null; // Kosongkan state modal secara instan
+        const clientId = clientObj.id;
+        const clientName = clientObj.name;
+        const price = Number(clientObj.price) || 0;
+        const durationMonths = parseInt(clientObj.durationMonths) || 1;
+        const currentEndDate = clientObj.endDate;
+        const startDateStr = clientObj.startDate instanceof Date ? clientObj.startDate.toISOString() : clientObj.startDate;
+
+        // Tutup Modal Seketika agar aplikasi terasa cepat
+        window.closeRenewModal(); 
 
         try {
             const today = new Date();
-            const trxId = "INV-" + Math.floor(Math.random() * 10000) + clientObj.id.toString().slice(-4);
-            const price = Number(clientObj.price) || 0;
-
+            const trxId = "INV-" + Math.floor(Math.random() * 10000) + clientId.toString().slice(-4);
+            
             const newTrx = {
                 id: trxId,
-                clientId: clientObj.id,
-                clientName: clientObj.name,
+                clientId: clientId,
+                clientName: clientName,
                 date: today.toLocaleDateString('id-ID'),
                 dateObj: today.toISOString(),
                 amount: price,
                 type: "Perpanjangan"
             };
 
-            let newEndDate;
-            if (clientObj.endDate === 'lifetime') {
+            if (currentEndDate === 'lifetime') {
                 return alert('Lisensi seumur hidup tidak perlu diperpanjang.');
             }
 
-            if (clientObj.endDate < today) {
-                newEndDate = new Date(today);
+            let newEndDate;
+            if (new Date(currentEndDate) < today) {
+                newEndDate = new Date(today); // Mulai dari hari ini jika sudah basi
             } else {
-                newEndDate = new Date(clientObj.endDate);
+                newEndDate = new Date(currentEndDate); // Lanjutkan sisa waktu jika belum basi
             }
             
-            const dur = parseInt(clientObj.durationMonths) || 1;
-            newEndDate.setMonth(newEndDate.getMonth() + dur);
+            newEndDate.setMonth(newEndDate.getMonth() + durationMonths);
             
             const updatedClient = {
                 ...clientObj,
-                startDate: clientObj.startDate, // (berupa Date obj, tapi akan dikonversi jika beda)
+                startDate: startDateStr,
                 endDate: newEndDate.toISOString()
             };
             
-            // Jaga-jaga jika startDate masih bentuk Date objek, kembalikan ke string ISO
-            if(updatedClient.startDate instanceof Date) {
-                updatedClient.startDate = updatedClient.startDate.toISOString();
-            }
+            // Simpan Perubahan ke Database
+            const docClientRef = doc(dbCrm, 'artifacts', appId, 'public', 'data', 'clients', clientId.toString());
+            const docTrxRef = doc(dbCrm, 'artifacts', appId, 'public', 'data', 'transactions', newTrx.id);
 
-            // Simpan Perubahan ke Jalur Pasti
-            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', ADMIN_DATA_ID, 'clients', clientObj.id.toString()), updatedClient);
-            await setDoc(doc(dbCrm, 'artifacts', appId, 'users', ADMIN_DATA_ID, 'transactions', newTrx.id), newTrx);
+            await setDoc(docClientRef, updatedClient);
+            await setDoc(docTrxRef, newTrx);
 
-            setTimeout(() => alert(`Pembayaran perpanjangan berhasil dicatat & masuk ke pendapatan!`), 100);
+            alert(`Pembayaran perpanjangan klien atas nama ${clientName} berhasil dicatat ke histori!`);
         } catch (error) {
             console.error(error);
             alert("Gagal mencatat pembayaran: " + error.message);
@@ -502,12 +513,16 @@
 
     window.deleteClient = async function(clientId) {
         if (confirm("Apakah Anda yakin ingin menghapus klien ini secara permanen?")) {
-            await deleteDoc(doc(dbCrm, 'artifacts', appId, 'users', ADMIN_DATA_ID, 'clients', clientId.toString()));
-            const clientTrx = window.transactions.filter(t => t.clientId === clientId);
-            clientTrx.forEach(async trx => {
-                await deleteDoc(doc(dbCrm, 'artifacts', appId, 'users', ADMIN_DATA_ID, 'transactions', trx.id));
-            });
-            alert("Data dihapus.");
+            try {
+                await deleteDoc(doc(dbCrm, 'artifacts', appId, 'public', 'data', 'clients', clientId.toString()));
+                const clientTrx = window.transactions.filter(t => t.clientId === clientId);
+                for (const trx of clientTrx) {
+                    await deleteDoc(doc(dbCrm, 'artifacts', appId, 'public', 'data', 'transactions', trx.id));
+                }
+                alert("Data berhasil dihapus selamanya.");
+            } catch(error) {
+                alert("Gagal menghapus: " + error.message);
+            }
         }
     };
 
