@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Manajemen Klien - MANAJEMEN KALIMAJA APPS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Tambahkan library Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .app-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; min-height: 100vh; position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.05); padding-bottom: 80px;}
+        .hide { display: none !important; }
+        .tab-btn.active { color: #4f46e5; font-weight: 700; border-top: 3px solid #4f46e5; background-color: #eef2ff;}
+    </style>
+</head>
+<body>
+
+<div class="app-container border-x border-gray-200">
+    <!-- Header -->
+    <header class="bg-indigo-600 text-white p-5 shadow-md sticky top-0 z-40">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="font-bold text-xl tracking-wide">MANAJEMEN KALIMAJA APPS</h1>
+                <p class="text-indigo-200 text-xs mt-0.5">Manajemen Lisensi & Langganan Aplikasi</p>
+            </div>
+            <div class="bg-indigo-700 p-2.5 rounded-full shadow-inner">
+                <i class="fas fa-building text-white"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main id="main-content" class="p-4">
+        
+        <!-- SECTION: DASHBOARD & PENGINGAT -->
+        <section id="sec-dashboard">
+            <!-- Ringkasan -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="bg-white border border-gray-200 p-4 rounded-2xl shadow-sm text-center">
+                    <div class="text-gray-500 text-xs font-bold uppercase mb-1">Total Klien</div>
+                    <div id="stat-total-clients" class="text-3xl font-black text-indigo-600">0</div>
+                </div>
+                <div class="bg-white border border-gray-200 p-4 rounded-2xl shadow-sm text-center">
+                    <div class="text-gray-500 text-xs font-bold uppercase mb-1">Pendapatan Bulan Ini</div>
+                    <div id="stat-revenue" class="text-xl font-bold text-green-600 mt-2">Rp 0</div>
+                </div>
+            </div>
+
+            <!-- Grafik Pendapatan -->
+            <div class="bg-white border border-gray-200 p-4 rounded-2xl shadow-sm mb-6">
+                <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
+                    <h2 class="text-gray-800 font-bold text-sm"><i class="fas fa-chart-line text-indigo-500 mr-2"></i>Trend Pendapatan</h2>
+                    <select id="chart-filter" onchange="updateChart()" class="text-xs bg-gray-50 border border-gray-200 text-gray-700 rounded-lg p-1.5 focus:ring-2 focus:ring-indigo-500 outline-none font-semibold cursor-pointer">
+                        <option value="daily">Harian (Bulan Ini)</option>
+                        <option value="monthly" selected>Bulanan (Tahun Ini)</option>
+                        <option value="yearly">Tahunan</option>
+                    </select>
+                </div>
+                <div class="relative h-[200px] w-full">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Area Pengingat (Reminder) -->
+            <div class="mb-4 flex items-center justify-between">
+                <h2 class="text-gray-800 font-bold text-lg"><i class="fas fa-bell text-orange-500 mr-2"></i>Pengingat Jatuh Tempo</h2>
+            </div>
+            
+            <div id="reminder-list" class="space-y-3">
+                <!-- Daftar klien yang hampir habis masa aktifnya akan muncul di sini -->
+            </div>
+        </section>
+
+        <!-- SECTION: DATA PELANGGAN/KLIEN -->
+        <section id="sec-clients" class="hide">
+            <div class="flex justify-between items-center mb-5 border-b border-gray-100 pb-3">
+                <div>
+                    <h2 class="text-gray-800 font-bold text-lg">Daftar Klien Aplikasi</h2>
+                    <p class="text-xs text-gray-500">Klien yang membeli aplikasi kita</p>
+                </div>
+                <button onclick="openClientModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition flex items-center">
+                    <i class="fas fa-plus mr-2"></i> Klien Baru
+                </button>
+            </div>
+
+            <!-- Search -->
+            <div class="relative mb-4">
+                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                <input type="text" id="search-client" onkeyup="filterClients()" placeholder="Cari nama klien, KTP, atau lisensi..." class="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+
+            <div id="client-list" class="space-y-4">
+                <!-- List Klien di-render via JS -->
+            </div>
+        </section>
+
+        <!-- SECTION: RIWAYAT TRANSAKSI -->
+        <section id="sec-transactions" class="hide">
+            <div class="mb-5 border-b border-gray-100 pb-3">
+                <h2 class="text-gray-800 font-bold text-lg"><i class="fas fa-file-invoice-dollar text-green-600 mr-2"></i>Riwayat Pembayaran</h2>
+                <p class="text-xs text-gray-500">Log transaksi pembelian & perpanjangan</p>
+            </div>
+            <div id="transaction-list" class="space-y-3">
+                <!-- List Transaksi di-render via JS -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="fixed bottom-0 w-full max-w-[600px] bg-white border-t border-gray-200 flex justify-around shadow-[0_-5px_15px_rgba(0,0,0,0.03)] z-40">
+        <button onclick="switchTab('sec-dashboard')" id="nav-dashboard" class="tab-btn active flex flex-col items-center py-3 text-gray-500 w-1/3 transition border-t-3 border-transparent">
+            <i class="fas fa-chart-pie text-xl mb-1"></i>
+            <span class="text-[11px]">Dashboard</span>
+        </button>
+        <button onclick="switchTab('sec-clients')" id="nav-clients" class="tab-btn flex flex-col items-center py-3 text-gray-500 w-1/3 transition border-t-3 border-transparent">
+            <i class="fas fa-users text-xl mb-1"></i>
+            <span class="text-[11px]">Data Klien</span>
+        </button>
+        <button onclick="switchTab('sec-transactions')" id="nav-transactions" class="tab-btn flex flex-col items-center py-3 text-gray-500 w-1/3 transition border-t-3 border-transparent">
+            <i class="fas fa-receipt text-xl mb-1"></i>
+            <span class="text-[11px]">Transaksi</span>
+        </button>
+    </nav>
+
+    <!-- Modal Tambah Klien -->
+    <div id="client-modal" class="fixed inset-0 bg-gray-900 bg-opacity-60 z-50 flex items-center justify-center p-4 hide backdrop-blur-sm">
+        <div class="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="bg-indigo-600 p-4 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-lg" id="modal-title">Registrasi Klien Baru</h3>
+                <button onclick="closeClientModal()" class="text-white hover:text-gray-200 bg-indigo-700 rounded-full w-8 h-8 flex items-center justify-center"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="bg-indigo-50 p-3 border-b border-indigo-100 flex flex-col gap-2 shrink-0">
+                <span class="text-[10px] text-indigo-800 font-semibold mb-1"><i class="fas fa-cloud-download-alt mr-1"></i> Tarik Data Otomatis dari Cloud:</span>
+                <div class="flex space-x-2">
+                    <button type="button" onclick="simulatePullData('tuser')" class="flex-1 bg-white border border-indigo-200 text-indigo-600 py-1.5 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition shadow-sm flex flex-col items-center">
+                        <span>Aplikasi Tuser</span>
+                        <span class="font-normal text-[8px]">(Langganan)</span>
+                    </button>
+                    <button type="button" onclick="simulatePullData('pronews')" class="flex-1 bg-white border border-purple-200 text-purple-600 py-1.5 rounded-lg text-[10px] font-bold hover:bg-purple-100 transition shadow-sm flex flex-col items-center">
+                        <span>Billing Pro</span>
+                        <span class="font-normal text-[8px]">(Sekali Bayar)</span>
+                    </button>
+                </div>
+            </div>
+
+            <form id="client-form" class="p-5 overflow-y-auto" onsubmit="saveClient(event)">
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Nama Teknisi / Perusahaan</label>
+                    <input type="text" id="client-name" required class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Sesuai KTP / Usaha">
+                </div>
+                
+                <div class="mb-4 grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">No. KTP</label>
+                        <input type="number" id="client-ktp" required class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="16 Digit KTP">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Kode Lisensi</label>
+                        <input type="text" id="client-license" required class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Contoh: KMA-1234">
+                    </div>
+                </div>
+
+                <div class="mb-4 grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">No. WhatsApp</label>
+                        <input type="tel" id="client-phone" required class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0812...">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Email Pendaftar</label>
+                        <input type="email" id="client-email" required class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="email@klien.com">
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Aplikasi Yang Dibeli</label>
+                    <input type="text" id="client-app" value="Aplikasi Tuser AC" required class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm">
+                </div>
+
+                <div class="mb-4 grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Harga Langganan (Rp)</label>
+                        <input type="number" id="client-price" required class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="500000">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Tgl Mulai/Beli</label>
+                        <input type="date" id="client-start" required class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm">
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Siklus Tagihan</label>
+                    <select id="client-duration" class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm">
+                        <option value="1">1 Bulan</option>
+                        <option value="6">6 Bulan</option>
+                        <option value="12">1 Tahun</option>
+                        <option value="24">2 Tahun</option>
+                        <option value="lifetime">Sekali Selamanya (Lifetime)</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full py-3.5 mt-2 rounded-xl bg-indigo-600 font-bold text-white shadow-lg hover:bg-indigo-700 transition">Simpan Klien & Catat Transaksi</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Perpanjangan (Renew) -->
+    <div id="renew-modal" class="fixed inset-0 bg-gray-900 bg-opacity-60 z-50 flex items-center justify-center p-4 hide backdrop-blur-sm">
+        <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+            <div class="bg-green-600 p-4 text-white text-center">
+                <h3 class="font-bold text-lg">Perpanjang Lisensi</h3>
+            </div>
+            <div class="p-5">
+                <p class="text-center text-sm text-gray-600 mb-4">Catat pembayaran perpanjangan aplikasi untuk klien ini.</p>
+                
+                <div class="bg-gray-50 border border-gray-200 p-3 rounded-xl mb-4">
+                    <p class="text-xs text-gray-500">Klien:</p>
+                    <p id="renew-client-name" class="font-bold text-gray-800">Nama Klien</p>
+                    <p id="renew-app-name" class="text-sm text-indigo-600 font-semibold mb-2">Aplikasi</p>
+                    
+                    <p class="text-xs text-gray-500 mt-2">Biaya Perpanjangan:</p>
+                    <p id="renew-price" class="font-bold text-green-600 text-lg">Rp 0</p>
+                </div>
+
+                <div class="flex space-x-3 mt-5">
+                    <button onclick="closeRenewModal()" class="w-1/2 py-2.5 rounded-xl border border-gray-300 font-bold text-gray-600 hover:bg-gray-50">Batal</button>
+                    <button id="btn-confirm-renew" class="w-1/2 py-2.5 rounded-xl bg-green-600 font-bold text-white shadow-md hover:bg-green-700">Konfirmasi Bayar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- FIREBASE INTEGRATION & STATE ---
+    let db, auth, currentUser, appId;
+    const today = new Date();
+    
+    let clients = [];
+    let transactions = [];
+    let selectedClientToRenew = null;
+    let revenueChartInstance = null;
+
+    async function initFirebase() {
+        try {
+            const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+            const { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+            const { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUser = user;
+                    listenData(collection, onSnapshot);
+                }
+            });
+
+            // Ekspor fungsi db untuk digunakan di event onClick HTML
+            window.fsDoc = doc;
+            window.fsSetDoc = setDoc;
+            window.fsDeleteDoc = deleteDoc;
+        } catch (error) {
+            console.error("Gagal inisiasi database cloud:", error);
+            alert("Database offline atau dalam gangguan.");
+        }
+    }
+
+    function listenData(collection, onSnapshot) {
+        if (!currentUser) return;
+
+        // Sinkronisasi data Klien secara Realtime
+        onSnapshot(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'clients'), (snapshot) => {
+            clients = [];
+            snapshot.forEach(d => {
+                let data = d.data();
+                clients.push({
+                    ...data,
+                    startDate: new Date(data.startDate),
+                    endDate: data.endDate === 'lifetime' ? 'lifetime' : new Date(data.endDate)
+                });
+            });
+            updateDashboard();
+            renderClients(document.getElementById('search-client')?.value || '');
+        }, (error) => console.error(error));
+
+        // Sinkronisasi data Transaksi secara Realtime
+        onSnapshot(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'transactions'), (snapshot) => {
+            transactions = [];
+            snapshot.forEach(d => {
+                transactions.push(d.data());
+            });
+            transactions.sort((a,b) => new Date(a.dateObj || 0) - new Date(b.dateObj || 0)); 
+            updateDashboard();
+            renderTransactions();
+        }, (error) => console.error(error));
+    }
+
+    // --- LOGIC FORMATTING ---
+    const formatRp = (angka) => {
+        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(angka);
+    };
+
+    const formatDateShort = (dateObj) => {
+        const options = { day: 'numeric', month: 'short', year: 'numeric' };
+        return dateObj.toLocaleDateString('id-ID', options);
+    };
+
+    // --- CHART LOGIC ---
+    function getChartData(type) {
+        const now = today;
+        let labels = [];
+        let data = [];
+
+        if (type === 'daily') {
+            const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            for (let i = 1; i <= daysInMonth; i++) {
+                labels.push(i.toString());
+            }
+            const dailyData = new Array(daysInMonth).fill(0);
+
+            transactions.forEach(trx => {
+                const parts = trx.date.split(/[\/\-]/);
+                if (parts.length === 3) {
+                    const d = parseInt(parts[0]);
+                    const m = parseInt(parts[1]) - 1;
+                    const y = parseInt(parts[2]);
+                    if (m === now.getMonth() && y === now.getFullYear()) {
+                        dailyData[d - 1] += trx.amount;
+                    }
+                }
+            });
+            data = dailyData;
+
+        } else if (type === 'monthly') {
+            labels = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            const monthlyData = new Array(12).fill(0);
+            
+            transactions.forEach(trx => {
+                const parts = trx.date.split(/[\/\-]/);
+                if (parts.length === 3) {
+                    const m = parseInt(parts[1]) - 1;
+                    const y = parseInt(parts[2]);
+                    if (y === now.getFullYear()) {
+                        monthlyData[m] += trx.amount;
+                    }
+                }
+            });
+            data = monthlyData;
+
+        } else if (type === 'yearly') {
+            const yearData = {};
+            transactions.forEach(trx => {
+                const parts = trx.date.split(/[\/\-]/);
+                if (parts.length === 3) {
+                    const y = parseInt(parts[2]);
+                    yearData[y] = (yearData[y] || 0) + trx.amount;
+                }
+            });
+            
+            const sortedYears = Object.keys(yearData).sort();
+            if(sortedYears.length === 0) {
+                sortedYears.push(now.getFullYear().toString());
+                yearData[now.getFullYear()] = 0;
+            }
+            sortedYears.forEach(y => {
+                labels.push(y);
+                data.push(yearData[y]);
+            });
+        }
+        
+        return { labels, data };
+    }
+
+    function updateChart() {
+        const filter = document.getElementById('chart-filter');
+        if(!filter) return;
+        
+        const type = filter.value;
+        const chartData = getChartData(type);
+        const ctx = document.getElementById('revenueChart').getContext('2d');
+
+        if (revenueChartInstance) {
+            revenueChartInstance.destroy();
+        }
+
+        const chartType = type === 'yearly' ? 'bar' : 'line';
+
+        revenueChartInstance = new Chart(ctx, {
+            type: chartType,
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    label: 'Pendapatan (Rp)',
+                    data: chartData.data,
+                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                    borderColor: 'rgba(79, 70, 229, 1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: 'rgba(79, 70, 229, 1)',
+                    pointBorderWidth: 2,
+                    pointRadius: type === 'daily' ? 0 : 4,
+                    pointHoverRadius: 6,
+                    fill: true,
+                    tension: 0.3,
+                    borderRadius: type === 'yearly' ? 4 : 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                        padding: 10,
+                        callbacks: {
+                            label: function(context) {
+                                return formatRp(context.raw);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            font: { size: 10 },
+                            color: '#6b7280',
+                            callback: function(value) {
+                                if (value >= 1000000) return (value / 1000000) + 'Jt';
+                                if (value >= 1000) return (value / 1000) + 'Rb';
+                                return value;
+                            }
+                        },
+                        grid: { borderDash: [4, 4], color: '#f3f4f6' }
+                    },
+                    x: {
+                        ticks: { font: { size: 10 }, color: '#6b7280' },
+                        grid: { display: false }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index',
+                },
+            }
+        });
+    }
+
+    // --- CORE LOGIC & RENDER ---
+    function updateDashboard() {
+        document.getElementById('stat-total-clients').innerText = clients.length;
+        
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+        
+        let monthlyRevenue = 0;
+        transactions.forEach(trx => {
+            const trxParts = trx.date.split(/[\/\-]/);
+            if(trxParts.length === 3) {
+                const trxMonth = parseInt(trxParts[1]) - 1;
+                const trxYear = parseInt(trxParts[2]);
+                if(trxMonth === currentMonth && trxYear === currentYear) {
+                    monthlyRevenue += trx.amount;
+                }
+            } else {
+                monthlyRevenue += trx.amount; 
+            }
+        });
+        
+        document.getElementById('stat-revenue').innerText = formatRp(monthlyRevenue);
+
+        const reminderList = document.getElementById('reminder-list');
+        reminderList.innerHTML = '';
+        
+        const clientsToRemind = clients.filter(c => {
+            if (c.endDate === "lifetime") return false;
+            const timeDiff = c.endDate.getTime() - today.getTime();
+            const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
+            return daysRemaining <= 14;
+        }).sort((a, b) => a.endDate - b.endDate);
+
+        if (clientsToRemind.length === 0) {
+            reminderList.innerHTML = `<div class="bg-white p-6 rounded-2xl border border-gray-100 text-center shadow-sm"><p class="text-gray-500 text-sm">Semua lisensi aman. Tidak ada jadwal jatuh tempo dalam waktu dekat.</p></div>`;
+        } else {
+            clientsToRemind.forEach(c => {
+                const timeDiff = c.endDate.getTime() - today.getTime();
+                const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
+                
+                let statusConfig = {};
+                if (daysRemaining < 0) {
+                    statusConfig = { color: 'red', text: `Kedaluwarsa ${Math.abs(daysRemaining)} hari lalu`, icon: 'fa-exclamation-circle' };
+                } else if (daysRemaining === 0) {
+                    statusConfig = { color: 'red', text: `Jatuh tempo HARI INI`, icon: 'fa-exclamation-triangle' };
+                } else {
+                    statusConfig = { color: 'orange', text: `Sisa ${daysRemaining} hari`, icon: 'fa-clock' };
+                }
+
+                reminderList.innerHTML += `
+                    <div class="bg-white p-4 rounded-xl border-l-4 border-${statusConfig.color}-500 shadow-sm flex flex-col">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h4 class="font-bold text-gray-800 text-sm">${c.name}</h4>
+                                <p class="text-xs text-gray-500 truncate max-w-[180px]">${c.app}</p>
+                                <p class="text-xs font-bold text-${statusConfig.color}-600 mt-1"><i class="fas ${statusConfig.icon} mr-1"></i> ${statusConfig.text}</p>
+                            </div>
+                            <div class="text-right flex flex-col items-end">
+                                <p class="text-sm font-bold text-gray-800 mb-2">${formatRp(c.price)}</p>
+                                <button onclick="openRenewModal(${c.id})" class="bg-${statusConfig.color}-100 text-${statusConfig.color}-700 px-3 py-1 rounded-lg text-[10px] font-bold hover:bg-${statusConfig.color}-200 transition">
+                                    Catat Perpanjang
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-gray-100 flex space-x-2">
+                            <button onclick="sendWA(${c.id})" class="flex-1 bg-green-50 text-green-600 border border-green-200 py-1.5 rounded-lg text-[11px] font-bold hover:bg-green-100 transition flex justify-center items-center">
+                                <i class="fab fa-whatsapp mr-1 text-sm"></i> Kirim WA
+                            </button>
+                            <button onclick="sendEmail(${c.id})" class="flex-1 bg-blue-50 text-blue-600 border border-blue-200 py-1.5 rounded-lg text-[11px] font-bold hover:bg-blue-100 transition flex justify-center items-center">
+                                <i class="fas fa-envelope mr-1 text-sm"></i> Kirim Email
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        updateChart();
+    }
+
+    function renderClients(filterText = '') {
+        const list = document.getElementById('client-list');
+        list.innerHTML = '';
+        
+        const filteredClients = clients.filter(c => 
+            c.name.toLowerCase().includes(filterText.toLowerCase()) || 
+            c.app.toLowerCase().includes(filterText.toLowerCase()) ||
+            (c.ktp && c.ktp.includes(filterText)) ||
+            (c.license && c.license.toLowerCase().includes(filterText.toLowerCase()))
+        ).sort((a, b) => b.id - a.id);
+
+        if (filteredClients.length === 0) {
+            list.innerHTML = `<div class="text-center p-8 bg-white rounded-xl border border-gray-100 text-gray-400 text-sm shadow-sm">Belum ada data klien yang sesuai.</div>`;
+            return;
+        }
+        
+        filteredClients.forEach(c => {
+            const isLifetime = c.durationMonths === 'lifetime';
+            const isActive = isLifetime ? true : c.endDate >= today;
+            
+            let statusBadge = '';
+            if (isLifetime) {
+                statusBadge = `<span class="bg-purple-100 text-purple-700 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide"><i class="fas fa-infinity mr-1"></i> LIFETIME</span>`;
+            } else {
+                statusBadge = isActive 
+                    ? `<span class="bg-green-100 text-green-700 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide">AKTIF</span>` 
+                    : `<span class="bg-red-100 text-red-700 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide">EXPIRED</span>`;
+            }
+
+            const clientTrx = transactions.filter(t => t.clientId === c.id).reverse();
+            let historyHTML = '';
+            if(clientTrx.length === 0) {
+                historyHTML = `<p class="text-center text-xs text-gray-500 py-2">Belum ada histori transaksi.</p>`;
+            } else {
+                historyHTML = `<div class="space-y-2 mt-3 pt-3 border-t border-gray-200">
+                    <p class="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Riwayat Pembayaran</p>`;
+                clientTrx.forEach(trx => {
+                    const isNew = trx.type === "Baru";
+                    historyHTML += `
+                        <div class="bg-white border border-gray-100 rounded-lg p-2.5 flex justify-between items-center shadow-sm">
+                            <div>
+                                <p class="font-bold text-gray-800 text-xs">${trx.date}</p>
+                                <p class="text-[9px] font-bold ${isNew ? 'text-yellow-600 bg-yellow-100' : 'text-green-600 bg-green-100'} inline-block px-1.5 py-0.5 rounded mt-1">${trx.type}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold text-green-600 text-xs">+ ${formatRp(trx.amount)}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+                historyHTML += `</div>`;
+            }
+
+            const item = document.createElement('div');
+            item.className = "bg-white p-4 rounded-xl shadow-sm border border-gray-100";
+            item.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <h3 class="font-bold text-gray-800 text-[15px]">${c.name}</h3>
+                        <p class="text-xs text-indigo-600 font-semibold mt-0.5">${c.app}</p>
+                    </div>
+                    <div class="flex flex-col items-end">
+                        ${statusBadge}
+                        <button onclick="deleteClient(${c.id})" class="mt-2 text-gray-400 hover:text-red-500 transition" title="Hapus Klien">
+                            <i class="fas fa-trash-alt text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-3 mt-4 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                    <div class="col-span-2 sm:col-span-1"><i class="fas fa-id-card text-gray-400 w-4 text-center mr-1"></i> <span class="font-semibold text-gray-700">${c.ktp || '-'}</span></div>
+                    <div class="col-span-2 sm:col-span-1"><i class="fas fa-key text-yellow-500 w-4 text-center mr-1"></i> <span class="font-mono font-bold text-indigo-600">${c.license || '-'}</span></div>
+                    <div class="col-span-2 sm:col-span-1"><i class="fab fa-whatsapp text-green-500 w-4 text-center mr-1"></i> ${c.phone}</div>
+                    <div class="col-span-2 sm:col-span-1"><i class="fas fa-envelope text-blue-400 w-4 text-center mr-1"></i> <span class="truncate">${c.email || '-'}</span></div>
+                </div>
+                
+                <div class="mb-3 text-xs"><i class="fas fa-money-bill-wave text-gray-400 mr-1.5 w-4 text-center"></i> Harga: <span class="font-bold text-gray-700">${formatRp(c.price)}</span> ${isLifetime ? '<span class="ml-1 font-bold text-purple-600 text-[10px] bg-purple-50 px-1 rounded">(Sekali Bayar)</span>' : '/ ' + c.durationMonths + ' bln'}</div>
+
+                <div class="bg-gray-50 p-3 rounded-lg text-xs flex flex-col gap-3 border border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-gray-400 text-[10px] uppercase font-semibold mb-0.5">Berlaku Sampai</p>
+                            <p class="font-bold ${isLifetime ? 'text-purple-600' : (isActive ? 'text-gray-700' : 'text-red-600')}">${isLifetime ? 'Seumur Hidup' : formatDateShort(c.endDate)}</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="toggleClientHistory(${c.id})" class="text-gray-600 bg-white hover:bg-gray-100 px-3 py-1.5 rounded-lg font-bold transition border border-gray-200 shadow-sm flex items-center">
+                                <i class="fas fa-history mr-1"></i> Histori
+                            </button>
+                            ${isLifetime 
+                                ? `<div class="text-purple-500 bg-purple-50 px-3 py-1.5 rounded-lg font-bold border border-purple-100 shadow-sm flex items-center"><i class="fas fa-check-circle mr-1"></i> Lunas</div>`
+                                : `<button onclick="openRenewModal(${c.id})" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg font-bold transition border border-indigo-100 shadow-sm">Perpanjang</button>`
+                            }
+                        </div>
+                    </div>
+                    <!-- Embedded History Container -->
+                    <div id="history-container-${c.id}" class="hidden transition-all duration-300">
+                        ${historyHTML}
+                    </div>
+                </div>
+            `;
+            list.appendChild(item);
+        });
+    }
+
+    function renderTransactions() {
+        const list = document.getElementById('transaction-list');
+        list.innerHTML = '';
+        
+        if (transactions.length === 0) {
+            list.innerHTML = `<div class="text-center p-5 bg-white rounded-xl border border-gray-100 text-gray-400 text-sm">Belum ada riwayat transaksi.</div>`;
+            return;
+        }
+
+        const sorted = [...transactions].reverse();
+        
+        sorted.forEach(trx => {
+            const isNew = trx.type === "Baru";
+            const iconClass = isNew ? "fa-star text-yellow-500 bg-yellow-50" : "fa-sync-alt text-green-500 bg-green-50";
+
+            const item = document.createElement('div');
+            item.className = "bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center";
+            item.innerHTML = `
+                <div class="flex items-center">
+                    <div class="p-2.5 rounded-xl mr-3 ${iconClass} border border-gray-100">
+                        <i class="fas ${isNew ? 'fa-star' : 'fa-sync-alt'}"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-gray-800 text-sm">${trx.clientName}</p>
+                        <p class="text-xs text-gray-500 mt-0.5">${trx.date} • <span class="font-semibold text-indigo-500">${trx.type}</span></p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="font-bold text-gray-800 text-sm">+ ${formatRp(trx.amount)}</p>
+                    <p class="text-[10px] text-green-600 font-bold bg-green-50 inline-block px-2 py-0.5 rounded mt-1">LUNAS</p>
+                </div>
+            `;
+            list.appendChild(item);
+        });
+    }
+
+    // --- CLIENT MANAGEMENT LOGIC ---
+    function filterClients() {
+        const val = document.getElementById('search-client').value;
+        renderClients(val);
+    }
+
+    function openClientModal() {
+        document.getElementById('client-start').valueAsDate = new Date();
+        document.getElementById('client-modal').classList.remove('hide');
+    }
+
+    function closeClientModal() {
+        document.getElementById('client-modal').classList.add('hide');
+        document.getElementById('client-form').reset();
+    }
+    
+    // Fitur simulasi tarik data dari database klien eksternal
+    function simulatePullData(source) {
+        let appNameStr = source === 'tuser' ? 'Aplikasi Tuser (Langganan)' : 'Billing Pro (Sekali Bayar)';
+        let appUrl = source === 'tuser' ? 'kalimajasuryaalam-cyber.github.io' : 'billing-pronews.netlify.app';
+
+        const lookupEmail = prompt(`Masukkan Email atau Kode Lisensi untuk menarik data dari ${appNameStr}:`);
+        if (lookupEmail) {
+            // Simulasi jika data ditemukan di koleksi aplikasi lain
+            if (source === 'tuser') {
+                document.getElementById('client-name').value = "Budi Teknik AC";
+                document.getElementById('client-ktp').value = "3171234567890001";
+                document.getElementById('client-license').value = "KMA-9876-TUS";
+                document.getElementById('client-phone').value = "081999888777";
+                document.getElementById('client-email').value = lookupEmail;
+                document.getElementById('client-app').value = "Aplikasi Tuser AC";
+                document.getElementById('client-duration').value = "1";
+            } else {
+                document.getElementById('client-name').value = "Toko Sukses Makmur";
+                document.getElementById('client-ktp').value = "3171234567890002";
+                document.getElementById('client-license').value = "KMA-9876-PRO";
+                document.getElementById('client-phone').value = "081222333444";
+                document.getElementById('client-email').value = lookupEmail;
+                document.getElementById('client-app').value = "Billing Pronews App";
+                document.getElementById('client-duration').value = "lifetime";
+            }
+            
+            alert(`Data berhasil ditarik dari database ${appNameStr}!\n\n(Catatan: Pastikan web ${appUrl} terhubung di Firebase yang sama).`);
+        }
+    }
+
+    function saveClient(e) {
+        e.preventDefault();
+        if (!currentUser) return alert("Sistem masih menghubungkan database...");
+
+        const name = document.getElementById('client-name').value;
+        const appName = document.getElementById('client-app').value;
+        const phone = document.getElementById('client-phone').value;
+        const email = document.getElementById('client-email').value;
+        const ktp = document.getElementById('client-ktp').value;
+        const license = document.getElementById('client-license').value;
+        const price = parseInt(document.getElementById('client-price').value);
+        const startDateInput = document.getElementById('client-start').value;
+        const durationVal = document.getElementById('client-duration').value;
+
+        const duration = durationVal === 'lifetime' ? 'lifetime' : parseInt(durationVal);
+        const startDate = new Date(startDateInput);
+        
+        let endDate = 'lifetime';
+        if (duration !== 'lifetime') {
+            endDate = new Date(startDate);
+            endDate.setMonth(endDate.getMonth() + duration);
+        }
+
+        const newClientId = Date.now();
+        const newClient = {
+            id: newClientId,
+            name: name,
+            app: appName,
+            phone: phone,
+            email: email,
+            ktp: ktp,
+            license: license,
+            price: price,
+            durationMonths: duration,
+            startDate: startDate.toISOString(), 
+            endDate: endDate === 'lifetime' ? 'lifetime' : endDate.toISOString()
+        };
+
+        const trxId = "INV-" + Math.floor(Math.random() * 10000) + newClientId.toString().slice(-4);
+        const newTrx = {
+            id: trxId,
+            clientId: newClient.id,
+            clientName: newClient.name,
+            date: new Date().toLocaleDateString('id-ID'),
+            dateObj: new Date().toISOString(),
+            amount: price,
+            type: "Baru"
+        };
+
+        // Simpan ke Firestore (Online)
+        window.fsSetDoc(window.fsDoc(db, 'artifacts', appId, 'users', currentUser.uid, 'clients', newClient.id.toString()), newClient);
+        window.fsSetDoc(window.fsDoc(db, 'artifacts', appId, 'users', currentUser.uid, 'transactions', newTrx.id), newTrx);
+
+        closeClientModal();
+        alert("Klien baru beserta KTP dan Lisensinya berhasil dicatat di cloud!");
+        
+        // Perpindahan layar otomatis
+        switchTab('sec-clients');
+    }
+
+    // --- RENEWAL LOGIC ---
+    function openRenewModal(clientId) {
+        selectedClientToRenew = clients.find(c => c.id === clientId);
+        if(!selectedClientToRenew) return;
+
+        document.getElementById('renew-client-name').innerText = selectedClientToRenew.name;
+        document.getElementById('renew-app-name').innerText = selectedClientToRenew.app;
+        document.getElementById('renew-price').innerText = formatRp(selectedClientToRenew.price);
+        document.getElementById('renew-modal').classList.remove('hide');
+    }
+
+    function closeRenewModal() {
+        document.getElementById('renew-modal').classList.add('hide');
+        selectedClientToRenew = null;
+    }
+
+    document.getElementById('btn-confirm-renew').addEventListener('click', function() {
+        if(!selectedClientToRenew || !currentUser) return;
+
+        // 1. Catat Transaksi Perpanjangan
+        const trxId = "INV-" + Math.floor(Math.random() * 10000) + selectedClientToRenew.id.toString().slice(-4);
+        const newTrx = {
+            id: trxId,
+            clientId: selectedClientToRenew.id,
+            clientName: selectedClientToRenew.name,
+            date: new Date().toLocaleDateString('id-ID'),
+            dateObj: new Date().toISOString(),
+            amount: selectedClientToRenew.price,
+            type: "Perpanjangan"
+        };
+
+        // 2. Tambah Masa Aktif (EndDate)
+        let newEndDate;
+        if (selectedClientToRenew.endDate < today) {
+            newEndDate = new Date(today);
+        } else {
+            newEndDate = new Date(selectedClientToRenew.endDate);
+        }
+        
+        newEndDate.setMonth(newEndDate.getMonth() + selectedClientToRenew.durationMonths);
+        
+        // 3. Update Client di Firestore
+        const updatedClient = {
+            ...selectedClientToRenew,
+            startDate: selectedClientToRenew.startDate.toISOString(), 
+            endDate: newEndDate.toISOString()
+        };
+
+        window.fsSetDoc(window.fsDoc(db, 'artifacts', appId, 'users', currentUser.uid, 'clients', selectedClientToRenew.id.toString()), updatedClient);
+        window.fsSetDoc(window.fsDoc(db, 'artifacts', appId, 'users', currentUser.uid, 'transactions', newTrx.id), newTrx);
+
+        alert(`Pembayaran berhasil dicatat! Masa aktif aplikasi ${selectedClientToRenew.name} telah diperpanjang hingga ${formatDateShort(newEndDate)}.`);
+        
+        closeRenewModal();
+    });
+
+    // --- DELETE & HISTORY LOGIC ---
+    function deleteClient(clientId) {
+        if (!currentUser) return alert("Menunggu koneksi database...");
+
+        if (confirm("Apakah Anda yakin ingin menghapus klien ini beserta seluruh histori transaksinya secara permanen?")) {
+            
+            // Hapus Klien dari Cloud
+            window.fsDeleteDoc(window.fsDoc(db, 'artifacts', appId, 'users', currentUser.uid, 'clients', clientId.toString()));
+            
+            // Hapus semua transaksi dari Cloud yang berkaitan dengan klien ini
+            const clientTrx = transactions.filter(t => t.clientId === clientId);
+            clientTrx.forEach(trx => {
+                window.fsDeleteDoc(window.fsDoc(db, 'artifacts', appId, 'users', currentUser.uid, 'transactions', trx.id));
+            });
+            
+            alert("Data klien dan seluruh transaksi terkait telah dihapus dari sistem.");
+        }
+    }
+
+    function toggleClientHistory(clientId) {
+        const container = document.getElementById(`history-container-${clientId}`);
+        if (container) {
+            container.classList.toggle('hidden');
+        }
+    }
+
+    // --- MESSAGING LOGIC ---
+    function sendWA(clientId) {
+        const c = clients.find(x => x.id === clientId);
+        if (!c) return;
+        
+        let phone = c.phone.trim();
+        // Format otomatis +62 untuk WA
+        if (phone.startsWith('0')) {
+            phone = '62' + phone.substring(1);
+        }
+        
+        const text = `Halo *${c.name}*,%0A%0AIni adalah pesan otomatis dari *MANAJEMEN KALIMAJA APPS*. Kami ingin mengingatkan bahwa masa aktif langganan aplikasi *${c.app}* Anda akan segera berakhir pada *${formatDateShort(c.endDate)}*.%0A%0AMohon segera melakukan pembayaran perpanjangan sebesar *${formatRp(c.price)}* agar layanan tidak terputus.%0A%0ATerima kasih,%0AMANAJEMEN KALIMAJA APPS`;
+        
+        window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+    }
+
+    function sendEmail(clientId) {
+        const c = clients.find(x => x.id === clientId);
+        if (!c) return;
+        
+        const subject = encodeURIComponent(`Pengingat Perpanjangan Langganan Aplikasi - MANAJEMEN KALIMAJA APPS`);
+        const body = encodeURIComponent(`Halo ${c.name},\n\nIni adalah pesan dari MANAJEMEN KALIMAJA APPS. Kami ingin mengingatkan bahwa masa aktif langganan aplikasi ${c.app} Anda akan segera berakhir pada ${formatDateShort(c.endDate)}.\n\nMohon segera melakukan pembayaran perpanjangan sebesar ${formatRp(c.price)} agar layanan tidak terputus dan bisnis Anda tetap berjalan dengan lancar.\n\nTerima kasih atas kepercayaannya menggunakan layanan kami.\n\nSalam,\nMANAJEMEN KALIMAJA APPS`);
+        
+        window.open(`mailto:${c.email}?subject=${subject}&body=${body}`);
+    }
+
+    // --- NAVIGATION LOGIC ---
+    function switchTab(tabId) {
+        // Hide all sections
+        ['sec-dashboard', 'sec-clients', 'sec-transactions'].forEach(id => {
+            document.getElementById(id).classList.add('hide');
+        });
+        // Remove active class from navs
+        ['nav-dashboard', 'nav-clients', 'nav-transactions'].forEach(id => {
+            document.getElementById(id).classList.remove('active');
+        });
+
+        // Show selected section & activate nav
+        document.getElementById(tabId).classList.remove('hide');
+        document.getElementById('nav-' + tabId.split('-')[1]).classList.add('active');
+        
+        // Render up-to-date data
+        if(tabId === 'sec-dashboard') updateDashboard();
+        if(tabId === 'sec-clients') { document.getElementById('search-client').value = ''; renderClients(); }
+        if(tabId === 'sec-transactions') renderTransactions();
+        
+        // Scroll to top
+        window.scrollTo(0, 0);
+    }
+
+    // INIT
+    window.onload = () => {
+        initFirebase();
+    };
+
+</script>
+</body>
+</html>
