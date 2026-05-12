@@ -32,12 +32,36 @@
                 <input type="text" id="login-user" required class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Masukkan username">
             </div>
             <div class="mb-6 text-left">
-                <label class="block text-xs font-bold text-gray-700 mb-1">Password</label>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="block text-xs font-bold text-gray-700">Password</label>
+                    <a href="#" onclick="openForgotPassword(event)" class="text-[10px] text-indigo-600 font-bold hover:underline">Lupa Password?</a>
+                </div>
                 <input type="password" id="login-pass" required class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="••••••••">
             </div>
             <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-md">Masuk ke Sistem</button>
         </form>
         <p class="text-[10px] text-gray-400 mt-6"><i class="fas fa-shield-alt mr-1"></i> Data tersimpan aman di Cloud</p>
+    </div>
+</div>
+
+<!-- MODAL LUPA PASSWORD -->
+<div id="forgot-password-modal" class="fixed inset-0 bg-gray-900 bg-opacity-60 z-[60] flex items-center justify-center p-4 hide backdrop-blur-sm">
+    <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+        <div class="bg-indigo-600 p-4 text-white flex justify-between items-center">
+            <h3 class="font-bold text-lg"><i class="fas fa-key mr-2"></i>Reset Password</h3>
+            <button onclick="closeForgotPassword()" class="text-white hover:text-gray-200 bg-indigo-700 rounded-full w-8 h-8 flex items-center justify-center transition"><i class="fas fa-times"></i></button>
+        </div>
+        <form onsubmit="processForgotPassword(event)" class="p-5">
+            <p class="text-sm text-gray-600 mb-4">Masukkan alamat email pemulihan akun Admin Anda. Kami akan mengirimkan instruksi untuk mengatur ulang kata sandi.</p>
+            <div class="mb-5">
+                <label class="block text-xs font-bold text-gray-700 mb-1">Email Terdaftar</label>
+                <input type="email" id="reset-email" required class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" placeholder="admin@kalimaja.com">
+            </div>
+            <div class="flex space-x-3">
+                <button type="button" onclick="closeForgotPassword()" class="w-1/2 py-2.5 rounded-xl border border-gray-300 font-bold text-gray-600 hover:bg-gray-50 transition">Batal</button>
+                <button type="submit" class="w-1/2 py-2.5 rounded-xl bg-indigo-600 font-bold text-white shadow-md hover:bg-indigo-700 transition">Kirim Tautan</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -47,7 +71,7 @@
     <header class="bg-indigo-600 text-white p-5 shadow-md sticky top-0 z-40 flex justify-between items-center">
         <div>
             <h1 class="font-bold text-xl tracking-wide">MANAJEMEN KALIMAJA</h1>
-            <p class="text-indigo-200 text-xs mt-0.5">Sistem Langganan Aplikasi</p>
+            <p class="text-indigo-200 text-xs mt-0.5">Pusat Kendali 5 Aplikasi Bisnis</p>
         </div>
         <button onclick="handleLogout()" class="bg-indigo-700 p-3 rounded-full shadow-inner hover:bg-red-500 transition" title="Keluar">
             <i class="fas fa-power-off text-white"></i>
@@ -74,7 +98,7 @@
             <!-- Grafik Pendapatan -->
             <div class="bg-white border border-gray-200 p-4 rounded-2xl shadow-sm mb-6">
                 <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
-                    <h2 class="text-gray-800 font-bold text-sm"><i class="fas fa-chart-line text-indigo-500 mr-2"></i>Trend Pendapatan</h2>
+                    <h2 class="text-gray-800 font-bold text-sm"><i class="fas fa-chart-line text-indigo-500 mr-2"></i>Trend Penjualan</h2>
                     <select id="chart-filter" onchange="updateChart()" class="text-xs bg-gray-50 border border-gray-200 text-gray-700 rounded-lg p-1.5 focus:ring-2 focus:ring-indigo-500 outline-none font-semibold cursor-pointer">
                         <option value="daily">Harian (Bulan Ini)</option>
                         <option value="monthly" selected>Bulanan (Tahun Ini)</option>
@@ -101,7 +125,7 @@
             <div class="flex justify-between items-center mb-5 border-b border-gray-100 pb-3">
                 <div>
                     <h2 class="text-gray-800 font-bold text-lg">Daftar Klien Aplikasi</h2>
-                    <p class="text-xs text-gray-500">Klien yang membeli aplikasi kita</p>
+                    <p class="text-xs text-gray-500">Database pelanggan dari seluruh produk</p>
                 </div>
                 <button onclick="openClientModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition flex items-center">
                     <i class="fas fa-plus mr-2"></i> Klien Baru
@@ -111,7 +135,7 @@
             <!-- Search -->
             <div class="relative mb-4">
                 <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                <input type="text" id="search-client" onkeyup="filterClients()" placeholder="Cari nama klien, KTP, atau lisensi..." class="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <input type="text" id="search-client" onkeyup="filterClients()" placeholder="Cari nama klien, KTP, lisensi, atau nama aplikasi..." class="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
             </div>
 
             <div id="client-list" class="space-y-4">
@@ -148,24 +172,38 @@
         </button>
     </nav>
 
-    <!-- Modal Tambah Klien -->
+    <!-- Modal Tambah Klien (5 APLIKASI) -->
     <div id="client-modal" class="fixed inset-0 bg-gray-900 bg-opacity-60 z-50 flex items-center justify-center p-4 hide backdrop-blur-sm">
         <div class="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
             <div class="bg-indigo-600 p-4 text-white flex justify-between items-center shrink-0">
-                <h3 class="font-bold text-lg" id="modal-title">Registrasi Klien Baru</h3>
+                <h3 class="font-bold text-lg" id="modal-title">Registrasi Penjualan Baru</h3>
                 <button onclick="closeClientModal()" class="text-white hover:text-gray-200 bg-indigo-700 rounded-full w-8 h-8 flex items-center justify-center"><i class="fas fa-times"></i></button>
             </div>
 
             <form id="client-form" class="p-5 overflow-y-auto" onsubmit="saveClient(event)">
+                
+                <!-- DROPDOWN 5 APLIKASI TARGET -->
+                <div class="mb-4 bg-indigo-50 p-3 rounded-xl border border-indigo-100">
+                    <label class="block text-xs font-bold text-indigo-800 mb-1">Aplikasi Yang Dibeli</label>
+                    <select id="client-app" onchange="handleAppChange()" required class="w-full p-2.5 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm bg-white font-semibold text-gray-700 cursor-pointer outline-none">
+                        <option value="Aplikasi Billing Tuser AC">1. Aplikasi Billing Tuser AC</option>
+                        <option value="Aplikasi TKDNHUB">2. Aplikasi TKDNHUB (Billing Pro)</option>
+                        <option value="Aplikasi Manajemen Bengkel">3. Aplikasi Manajemen Bengkel</option>
+                        <option value="Aplikasi Kasir Retail">4. Aplikasi Kasir Retail</option>
+                        <option value="Aplikasi Klinik Medis">5. Aplikasi Klinik Medis</option>
+                    </select>
+                    <p class="text-[10px] text-indigo-600 mt-1"><i class="fas fa-info-circle mr-1"></i>Harga & siklus tagihan akan menyesuaikan otomatis.</p>
+                </div>
+
                 <div class="mb-4">
-                    <label class="block text-xs font-bold text-gray-700 mb-1">Nama Teknisi / Perusahaan</label>
-                    <input type="text" id="client-name" required class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Sesuai KTP / Usaha">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Nama Pembeli / Perusahaan</label>
+                    <input type="text" id="client-name" required class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Contoh: PT Sukses Makmur">
                 </div>
                 
                 <div class="mb-4 grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">No. KTP</label>
-                        <input type="number" id="client-ktp" required class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="16 Digit KTP">
+                        <label class="block text-xs font-bold text-gray-700 mb-1">No. KTP / NIK</label>
+                        <input type="number" id="client-ktp" required class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="16 Digit NIK">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1">Kode Lisensi</label>
@@ -184,15 +222,10 @@
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <label class="block text-xs font-bold text-gray-700 mb-1">Aplikasi Yang Dibeli</label>
-                    <input type="text" id="client-app" value="Aplikasi Tuser AC" required class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm">
-                </div>
-
                 <div class="mb-4 grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">Harga Langganan (Rp)</label>
-                        <input type="number" id="client-price" required class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="500000">
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Harga Transaksi (Rp)</label>
+                        <input type="number" id="client-price" required class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="20000">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1">Tgl Mulai/Beli</label>
@@ -209,7 +242,7 @@
                         <option value="lifetime">Sekali Selamanya (Lifetime)</option>
                     </select>
                 </div>
-                <button type="submit" class="w-full py-3.5 mt-2 rounded-xl bg-indigo-600 font-bold text-white shadow-lg hover:bg-indigo-700 transition">Simpan Klien & Catat Transaksi</button>
+                <button type="submit" class="w-full py-3.5 mt-2 rounded-xl bg-indigo-600 font-bold text-white shadow-lg hover:bg-indigo-700 transition">Simpan Klien & Catat Pemasukan</button>
             </form>
         </div>
     </div>
@@ -257,10 +290,22 @@
         messagingSenderId: "1286590659",
         appId: "1:1286590659:web:1878a970fc778ae6f19276"
     };
+
+    // IDENTITAS DATABASE PERMANEN
+    const ADMIN_DATA_ID = "kalimaja_master_admin"; 
     
     // LOGIN KREDENSIAL DEFAULT
     const ADMIN_USER = "admin";
     const ADMIN_PASS = "admin123";
+
+    // DEFAULT PRICING 5 APLIKASI
+    const APP_DEFAULTS = {
+        "Aplikasi Billing Tuser AC": { price: 20000, duration: "1" },
+        "Aplikasi TKDNHUB": { price: 150000, duration: "lifetime" },
+        "Aplikasi Manajemen Bengkel": { price: 50000, duration: "1" },
+        "Aplikasi Kasir Retail": { price: 30000, duration: "1" },
+        "Aplikasi Klinik Medis": { price: 250000, duration: "12" }
+    };
 
     // Inisiasi Firebase App
     let dbCrm;
@@ -278,9 +323,39 @@
     window.currentUser = null;
     window.clients = [];
     window.transactions = [];
-    window.renewingClientId = null; // Fix 2: Menyimpan ID dari klien yang akan diperpanjang secara aman
-    const appId = "kalimaja-crm"; // Nama Identifier Koleksi Master
+    window.renewingClientId = null; 
+    const appId = "kalimaja-crm"; 
     let revenueChartInstance = null;
+
+    // --- LOGIKA FORM APLIKASI ---
+    window.handleAppChange = function() {
+        const selectedApp = document.getElementById('client-app').value;
+        const config = APP_DEFAULTS[selectedApp];
+        if(config) {
+            document.getElementById('client-price').value = config.price;
+            document.getElementById('client-duration').value = config.duration;
+        }
+    };
+
+    // --- LOGIKA LUPA PASSWORD ---
+    window.openForgotPassword = function(e) {
+        e.preventDefault();
+        document.getElementById('forgot-password-modal').classList.remove('hide');
+    };
+
+    window.closeForgotPassword = function() {
+        document.getElementById('forgot-password-modal').classList.add('hide');
+        document.getElementById('reset-email').value = '';
+    };
+
+    window.processForgotPassword = function(e) {
+        e.preventDefault();
+        const email = document.getElementById('reset-email').value;
+        if(email) {
+            alert(`Tautan instruksi untuk mereset kata sandi telah dikirim ke email: ${email}\n\nSilakan periksa kotak masuk (Inbox) atau folder Spam Anda.`);
+            window.closeForgotPassword();
+        }
+    };
 
     // --- LOGIKA LOGIN ADMIN ---
     window.handleLogin = function(e) {
@@ -289,7 +364,7 @@
         const p = document.getElementById('login-pass').value;
 
         if (u === ADMIN_USER && p === ADMIN_PASS) {
-            // Sukses Login UI
+            localStorage.setItem('kalimaja_crm_logged_in', 'true');
             document.getElementById('login-screen').classList.add('hide');
             document.getElementById('main-app').classList.remove('hide');
             initCRM();
@@ -300,9 +375,16 @@
 
     window.handleLogout = function() {
         if (confirm("Apakah Anda yakin ingin keluar dari sistem?")) {
+            localStorage.removeItem('kalimaja_crm_logged_in');
             location.reload();
         }
     };
+
+    if (localStorage.getItem('kalimaja_crm_logged_in') === 'true') {
+        document.getElementById('login-screen').classList.add('hide');
+        document.getElementById('main-app').classList.remove('hide');
+        initCRM();
+    }
 
     // --- INISIASI DATABASE ---
     async function initCRM() {
@@ -322,13 +404,9 @@
     function listenData() {
         if (!window.currentUser) return;
         
-        // FIX 1: PENGGUNAAN PUBLIC PATH UNTUK MENCEGAH DATA HILANG
-        // Path dialihkan ke 'public/data' sehingga walau UID Anonim berubah-ubah
-        // (saat buka mode incognito/browser HP lain), data Anda tetap berada di tempat yang sama persis!
         const clientsRef = collection(dbCrm, 'artifacts', appId, 'public', 'data', 'clients');
         const transRef = collection(dbCrm, 'artifacts', appId, 'public', 'data', 'transactions');
 
-        // Listen Klien
         onSnapshot(clientsRef, (snapshot) => {
             window.clients = [];
             snapshot.forEach(d => {
@@ -343,7 +421,6 @@
             window.renderClients(document.getElementById('search-client')?.value || '');
         });
 
-        // Listen Transaksi
         onSnapshot(transRef, (snapshot) => {
             window.transactions = [];
             snapshot.forEach(d => {
@@ -361,8 +438,8 @@
         e.preventDefault();
         if (!window.currentUser) return alert("Sistem masih menghubungkan database utama...");
 
-        const name = document.getElementById('client-name').value;
         const appName = document.getElementById('client-app').value;
+        const name = document.getElementById('client-name').value;
         const phone = document.getElementById('client-phone').value;
         const email = document.getElementById('client-email').value;
         const ktp = document.getElementById('client-ktp').value;
@@ -414,7 +491,6 @@
                 type: "Baru"
             };
 
-            // Simpan ke Master Data Public Path
             const docClientRef = doc(dbCrm, 'artifacts', appId, 'public', 'data', 'clients', newClient.id.toString());
             const docTrxRef = doc(dbCrm, 'artifacts', appId, 'public', 'data', 'transactions', newTrx.id);
 
@@ -435,7 +511,7 @@
         const clientObj = window.clients.find(c => c.id === clientId);
         if(!clientObj) return;
 
-        window.renewingClientId = clientId; // Mengamankan ID klien ke memori
+        window.renewingClientId = clientId; 
         document.getElementById('renew-client-name').innerText = clientObj.name;
         document.getElementById('renew-app-name').innerText = clientObj.app;
         document.getElementById('renew-price').innerText = window.formatRp(clientObj.price);
@@ -444,13 +520,12 @@
 
     window.closeRenewModal = function() {
         document.getElementById('renew-modal').classList.add('hide');
-        window.renewingClientId = null; // Bersihkan dari memori
+        window.renewingClientId = null; 
     };
 
     document.getElementById('btn-confirm-renew').addEventListener('click', async function() {
         if(!window.renewingClientId || !window.currentUser) return;
 
-        // FIX 2: Amankan seluruh variabel sebelum layar ditutup (Anti Error Null)
         const clientObj = window.clients.find(c => c.id === window.renewingClientId);
         if (!clientObj) return;
 
@@ -461,7 +536,6 @@
         const currentEndDate = clientObj.endDate;
         const startDateStr = clientObj.startDate instanceof Date ? clientObj.startDate.toISOString() : clientObj.startDate;
 
-        // Tutup Modal Seketika agar aplikasi terasa cepat
         window.closeRenewModal(); 
 
         try {
@@ -484,9 +558,9 @@
 
             let newEndDate;
             if (new Date(currentEndDate) < today) {
-                newEndDate = new Date(today); // Mulai dari hari ini jika sudah basi
+                newEndDate = new Date(today); 
             } else {
-                newEndDate = new Date(currentEndDate); // Lanjutkan sisa waktu jika belum basi
+                newEndDate = new Date(currentEndDate); 
             }
             
             newEndDate.setMonth(newEndDate.getMonth() + durationMonths);
@@ -497,7 +571,6 @@
                 endDate: newEndDate.toISOString()
             };
             
-            // Simpan Perubahan ke Database
             const docClientRef = doc(dbCrm, 'artifacts', appId, 'public', 'data', 'clients', clientId.toString());
             const docTrxRef = doc(dbCrm, 'artifacts', appId, 'public', 'data', 'transactions', newTrx.id);
 
@@ -565,14 +638,23 @@
                 const daysRemaining = Math.ceil((c.endDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
                 let stat = daysRemaining < 0 ? {c:'red', t:`Kedaluwarsa ${Math.abs(daysRemaining)} hr`, i:'fa-exclamation'} : (daysRemaining === 0 ? {c:'red', t:'HARI INI', i:'fa-exclamation'} : {c:'orange', t:`Sisa ${daysRemaining} hr`, i:'fa-clock'});
                 
+                // Menentukan icon aplikasi di notifikasi
+                let appIcon = "fa-cube";
+                if(c.app.includes("Tuser")) appIcon = "fa-tools";
+                else if(c.app.includes("TKDN")) appIcon = "fa-file-invoice-dollar";
+                else if(c.app.includes("Bengkel")) appIcon = "fa-car";
+                else if(c.app.includes("Kasir")) appIcon = "fa-store";
+                else if(c.app.includes("Klinik")) appIcon = "fa-heartbeat";
+
                 reminderList.innerHTML += `
                     <div class="bg-white p-4 rounded-xl border-l-4 border-${stat.c}-500 shadow-sm flex flex-col">
                         <div class="flex justify-between items-start">
                             <div>
                                 <h4 class="font-bold text-gray-800 text-sm">${c.name}</h4>
+                                <p class="text-xs text-gray-500 truncate max-w-[180px]"><i class="fas ${appIcon} mr-1"></i>${c.app}</p>
                                 <p class="text-xs font-bold text-${stat.c}-600 mt-1"><i class="fas ${stat.i} mr-1"></i> ${stat.t}</p>
                             </div>
-                            <div class="text-right">
+                            <div class="text-right flex flex-col items-end">
                                 <p class="text-sm font-bold text-gray-800 mb-2">${window.formatRp(c.price)}</p>
                                 <button onclick="openRenewModal(${c.id})" class="bg-${stat.c}-100 text-${stat.c}-700 px-3 py-1 rounded-lg text-[10px] font-bold transition hover:bg-${stat.c}-200">Perpanjang</button>
                             </div>
@@ -617,6 +699,7 @@
         const filtered = window.clients.filter(c => 
             c.name.toLowerCase().includes(filterText.toLowerCase()) || 
             c.email.toLowerCase().includes(filterText.toLowerCase()) ||
+            c.app.toLowerCase().includes(filterText.toLowerCase()) ||
             (c.ktp && c.ktp.includes(filterText)) ||
             (c.license && c.license.toLowerCase().includes(filterText.toLowerCase()))
         ).sort((a, b) => b.id - a.id);
@@ -626,6 +709,17 @@
             const isActive = isLifetime ? true : c.endDate >= today;
             let badge = isLifetime ? `<span class="bg-purple-100 text-purple-700 px-2 py-1 rounded-md text-[10px] font-bold">LIFETIME</span>` : (isActive ? `<span class="bg-green-100 text-green-700 px-2 py-1 rounded-md text-[10px] font-bold">AKTIF</span>` : `<span class="bg-red-100 text-red-700 px-2 py-1 rounded-md text-[10px] font-bold">EXPIRED</span>`);
             
+            // Pengaturan Ikon & Warna Dinamis untuk ke-5 Aplikasi
+            let appIcon = "fa-cube";
+            let appColor = "text-indigo-600";
+            let bgAppColor = "bg-indigo-50";
+            
+            if(c.app.includes("Tuser")) { appIcon = "fa-tools"; appColor = "text-blue-600"; bgAppColor = "bg-blue-50"; }
+            else if(c.app.includes("TKDN") || c.app.includes("Billing Pro")) { appIcon = "fa-file-invoice-dollar"; appColor = "text-purple-600"; bgAppColor = "bg-purple-50"; }
+            else if(c.app.includes("Bengkel")) { appIcon = "fa-car"; appColor = "text-orange-600"; bgAppColor = "bg-orange-50"; }
+            else if(c.app.includes("Kasir")) { appIcon = "fa-store"; appColor = "text-green-600"; bgAppColor = "bg-green-50"; }
+            else if(c.app.includes("Klinik")) { appIcon = "fa-heartbeat"; appColor = "text-red-600"; bgAppColor = "bg-red-50"; }
+
             const clientTrx = window.transactions.filter(t => t.clientId === c.id).sort((a, b) => new Date(b.dateObj || 0) - new Date(a.dateObj || 0));
             let historyHTML = '';
             if(clientTrx.length === 0) {
@@ -653,7 +747,10 @@
             list.innerHTML += `
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                     <div class="flex justify-between items-start mb-2">
-                        <div><h3 class="font-bold text-gray-800">${c.name}</h3><p class="text-xs text-indigo-600">${c.app}</p></div>
+                        <div>
+                            <h3 class="font-bold text-gray-800">${c.name}</h3>
+                            <p class="text-[11px] mt-0.5 px-2 py-0.5 rounded ${bgAppColor} ${appColor} font-semibold inline-block"><i class="fas ${appIcon} mr-1"></i>${c.app}</p>
+                        </div>
                         <div class="flex flex-col items-end">${badge}<button onclick="deleteClient(${c.id})" class="mt-2 text-gray-400 hover:text-red-500"><i class="fas fa-trash-alt"></i></button></div>
                     </div>
                     <div class="grid grid-cols-2 gap-2 text-xs text-gray-500 my-3 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
@@ -695,7 +792,14 @@
     };
 
     window.filterClients = () => window.renderClients(document.getElementById('search-client').value);
-    window.openClientModal = () => { document.getElementById('client-start').valueAsDate = new Date(); document.getElementById('client-modal').classList.remove('hide'); };
+    
+    // Perbaikan Pembukaan Modal Client dengan Setelan Aplikasi Default
+    window.openClientModal = () => { 
+        document.getElementById('client-start').valueAsDate = new Date(); 
+        document.getElementById('client-modal').classList.remove('hide'); 
+        window.handleAppChange(); // Otomatis mengisi harga berdasarkan pilihan pertama
+    };
+    
     window.closeClientModal = () => { document.getElementById('client-modal').classList.add('hide'); document.getElementById('client-form').reset(); };
     window.switchTab = (tabId) => {
         ['sec-dashboard', 'sec-clients', 'sec-transactions'].forEach(id => document.getElementById(id).classList.add('hide'));
